@@ -28,14 +28,27 @@
 #include <stdint.h>
 #include <stdatomic.h>
 
+#define MAX_PATH_LEN (128)
+
 /* Input queue entry. */
 typedef struct {
+    char        path[MAX_PATH_LEN];     /* Filepath of the requested file. */
 
+    /* Synchronization. */
+    atomic_bool allocated;  /* Entry is currently being used. */
+    atomic_bool in_flight;  /* Entry has in-flight IO. */
 } iq_entry_t;
 
 /* Output queue entry. */
 typedef struct {
+    uint8_t *data;      /* File data. */
+    size_t   size;      /* Size of file data in bytes. */
+    size_t   max_size;  /* Maximum size of file data in bytes. */
 
+    /* Synchronization. */
+    atomic_bool allocated;  /* Entry is currently being used. */
+    atomic_bool ready;      /* Data is ready, and this entry has not yet been
+                               served to a worker. */
 } oq_entry_t;
 
 /* Worker state. Input/output queues unique to that worker. */
@@ -57,7 +70,7 @@ typedef struct {
 typedef struct {
     wstate_t *states;       /* N_STATES worker states. */
     size_t    n_states;     /* Number of worker states in STATES. */
-    
+
     size_t    dispatch_n;   /* Number of async IO requests to send at once. */
 } lstate_t;
 

@@ -35,7 +35,7 @@
 /* TODO. Worker interface to input queue. On success, inserts a request into the
    input queue and returns true. On failure, returns false. */
 bool
-async_request_file(wstate_t *state, char *path)
+async_request(wstate_t *state, char *path)
 {
     return;
 }
@@ -44,14 +44,14 @@ async_request_file(wstate_t *state, char *path)
    beginning of a file in the output queue, and sets SIZE to the size of the
    file in bytes. On failure, NULL is returned and SIZE is unmodified. */
 uint8_t *
-async_try_get_file(wstate_t *state, size_t *size)
+async_try_get(wstate_t *state, size_t *size)
 {
     return NULL;
 }
 
 /* TODO. Marks an entry in the output queue as complete (reclaimable). */
 void
-async_mark_done(wstate_t *state, uint8_t *data)
+async_release(wstate_t *state, uint8_t *data)
 {
     return;
 }
@@ -65,12 +65,12 @@ async_mark_done(wstate_t *state, uint8_t *data)
 void
 async_reader_loop(void)
 {
-
+    return;
 }
 
 /* TODO. Loop for responder thread. */
 void
 async_responder_loop(void)
 {
-
+    return;
 }
