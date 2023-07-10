@@ -24,6 +24,41 @@
 #ifndef __ASYNC_LOADER_MODULE_H_
 #define __ASYNC_LOADER_MODULE_H_
 
+#include <stdlib.h>
+#include <stdint.h>
+#include <stdatomic.h>
 
+/* Input queue entry. */
+typedef struct {
+
+} iq_entry_t;
+
+/* Output queue entry. */
+typedef struct {
+
+} oq_entry_t;
+
+/* Worker state. Input/output queues unique to that worker. */
+typedef struct {
+    /* Input queue. */
+    iq_entry_t *in_queue;       /* IN_CAPACITY input queue entries. */
+    iq_entry_t *in_next;        /* Next IN_QUEUE entry to check. */
+    size_t      in_used;        /* IN_QUEUE entries currently in use. */
+    size_t      in_capacity;    /* Total entries in IN_QUEUE. */
+
+    /* Output queue. */
+    oq_entry_t *out_queue;      /* OUT_CAPACITY output queue entries. */
+    oq_entry_t *out_next;       /* Next OUT_QUEUE entry to check. */
+    size_t      out_used;       /* OUT_QUEUE entries currently in used. */
+    size_t      out_capacity;   /* Total entries in OUT_QUEUE. */
+} wstate_t;
+
+/* Loader (reader + responder) state. */
+typedef struct {
+    wstate_t *states;       /* N_STATES worker states. */
+    size_t    n_states;     /* Number of worker states in STATES. */
+    
+    size_t    dispatch_n;   /* Number of async IO requests to send at once. */
+} lstate_t;
 
 #endif

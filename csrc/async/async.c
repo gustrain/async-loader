@@ -22,4 +22,55 @@
    */
 
 #include "async.h"
+
 #include "../utils/utils.h"
+#include <stdlib.h>
+#include <stdint.h>
+#include <stdbool.h>
+
+/* ------------- */
+/*   INTERFACE   */
+/* ------------- */
+
+/* TODO. Worker interface to input queue. On success, inserts a request into the
+   input queue and returns true. On failure, returns false. */
+bool
+async_request_file(wstate_t *state, char *path)
+{
+    return;
+}
+
+/* TODO. Worker interface to output queue. On success, returns a pointer to the
+   beginning of a file in the output queue, and sets SIZE to the size of the
+   file in bytes. On failure, NULL is returned and SIZE is unmodified. */
+uint8_t *
+async_try_get_file(wstate_t *state, size_t *size)
+{
+    return NULL;
+}
+
+/* TODO. Marks an entry in the output queue as complete (reclaimable). */
+void
+async_mark_done(wstate_t *state, uint8_t *data)
+{
+    return;
+}
+
+
+/* ----------- */
+/*   BACKEND   */
+/* ----------- */
+
+/* TODO. Loop for reader thread. */
+void
+async_reader_loop(void)
+{
+
+}
+
+/* TODO. Loop for responder thread. */
+void
+async_responder_loop(void)
+{
+
+}
