@@ -294,7 +294,11 @@ async_init(lstate_t *loader,
     loader->n_states = n_workers;
     loader->dispatch_n = min_dispatch_n;
 
-    /* Initialize liburing. */
+    /* Initialize liburing. 
+    
+       NOTE: The allocation here is going to be a problem. Modify liburing to
+             use mmap alloc / take an allocation function?
+       */
     if (io_uring_queue_init(n_workers * queue_depth, &loader->ring, 0) != 0) {
         mmap_free(loader->states, total_size);
         return -errno;
