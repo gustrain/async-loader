@@ -28,6 +28,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <errno.h>
+#include <pthread.h>
+#include <assert.h>
 
 /* ------------- */
 /*   INTERFACE   */
@@ -87,7 +89,7 @@ async_release(wstate_t *state, uint8_t *data)
 
 /* TODO.
    Loop for reader thread. */
-void
+void *
 async_reader_loop(void)
 {
     /* Wait until length of output queue < max. */
@@ -105,7 +107,7 @@ async_reader_loop(void)
 
 /* TODO.
    Loop for responder thread. */
-void
+void *
 async_responder_loop(void)
 {
     return;
@@ -116,11 +118,19 @@ async_responder_loop(void)
 void
 async_start(lstate_t *loader)
 {
-    return;
+    pthread_t reader, responder;
+
+    /* Spawn the reader. */
+    pthread_create(&reader, NULL, async_reader_loop, NULL);
+
+    /* Become the responder. */
+    async_responder_loop();
+
+    /* Never reached. */
+    assert(false);
 }
 
-/* TODO.
-   Initialize the loader. Allocates all shared memory. On success, initializes
+/* Initialize the loader. Allocates all shared memory. On success, initializes
    LOADER and returns 0. On failure, returns negative ERRNO value. Each worker
    is given of queue of depth QUEUE_DEPTH, with each entry containing
    MAX_FILE_SIZE bytes for file data. IO is only dispatched when a minimum of
