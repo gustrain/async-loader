@@ -30,6 +30,13 @@
 
 #define MAX_PATH_LEN (128)
 
+#define ALLOCATED_FLAG  (0b0001)
+#define IN_FLIGHT_FLAG  (0b0010)
+#define PENDING_FLAG    (0b0100)
+#define READY_FLAG      (0b1000)
+#define NONE_FLAG       (0b0000)
+
+
 /* Queue entry. */
 typedef struct {
     char     path[MAX_PATH_LEN];    /* Filepath data was read from. */
@@ -38,17 +45,19 @@ typedef struct {
     size_t   max_size;              /* Maximum size of file data in bytes. */
 
     /* Synchronization. */
-    atomic_bool allocated;  /* Entry is currently being used. */
-    atomic_bool in_flight;  /* Entry has in-flight IO. */
-    atomic_bool ready;      /* Data is ready, and this entry has not yet been
-                               served to a worker. */
+    atomic_int flags;   /* ALLOCATED = 0b0001 -- Entry is currently being used.
+                           IN FLIGHT = 0b0010 -- Entry has in-flight IO.
+                           PENDING   = 0b0100 -- Actively being examined. Skip.
+                           READY     = 0b1000 -- Data is ready, and this entry
+                                                 has not yet been served to a
+                                                 worker. */
 } entry_t;
 
 /* Worker state. Input/output queues unique to that worker. */
 typedef struct {
     /* Input queue. */
     entry_t *queue;     /* CAPACITY queue entries. */
-    entry_t *next;      /* Next QUEUE entry to check. */
+    uint64_t next;      /* Next QUEUE entry to check. */
     size_t   used;      /* QUEUE entries currently in use. */
     size_t   capacity;  /* Total entries in QUEUE. */
 } wstate_t;

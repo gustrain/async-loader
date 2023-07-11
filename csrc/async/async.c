@@ -88,27 +88,62 @@ async_release(wstate_t *state, uint8_t *data)
 /* ----------- */
 
 /* TODO.
+   On success, issues asynchronous IO and returns 0. On failure, returns
+   negative ERRNO value. */
+int
+async_perform_io(char *path, uint8_t *data, size_t *size, size_t max_size)
+{
+    return -1;
+}
+
+/* TODO.
    Loop for reader thread. */
 void *
-async_reader_loop(void)
+async_reader_loop(lstate_t *ld)
 {
-    /* Wait until length of output queue < max. */
+    /* Loop through the outer states array round-robin style, issuing one IO per
+       visit to each worker's queue. */
+    size_t i = 0;
+    while (true) {
+        wstate_t *st = &ld->states[i++ % ld->n_states];
 
-    /* Loop through input queue. */
+        /* Check the queue. */
+        for (size_t j = 0; j < st->capacity; j++) {
+            entry_t *e = &st->queue[(st->next + j) % st->capacity];
 
-    /* Find entry with allocated = true, in_flight = false, atomically set
-       in_flight to true (though atomics may not be needed, unless we have
-       multiple loader processes/threads). */
+            /* Get the flags. Skip if already pending. */
+            int flags = atomic_fetch_or(&e->flags, PENDING_FLAG);
+            if (flags & PENDING_FLAG) {
+                continue;
+            }
 
-    /* Ensure file exists. */
+            /* Otherwise, examine to see if it's a viable entry. */
+            if (!(flags & ALLOCATED_FLAG) || (flags & IN_FLIGHT_FLAG)) {
+                /* Toggle off the pending flag and try another entry. */
+                atomic_store(&e->flags, flags ^ PENDING_FLAG);
+                continue;
+            }
 
-    return;
+            /* Issue the IO for this entry's filepath. */
+            if (async_perform_io(e->path, e->data, &e->size, e->max_size) < 0) {
+                /* What to do on failure? */
+                atomic_store(&e->flags, flags ^ PENDING_FLAG);
+                continue;
+            };
+
+
+            /* Toggle the pending flag off, and the in-flight flag on, once
+                we've finished initiating the IO for this entry. */
+            atomic_store(&e->flags, flags ^ (PENDING_FLAG | IN_FLIGHT_FLAG));
+            break;
+        }
+    }
 }
 
 /* TODO.
    Loop for responder thread. */
 void *
-async_responder_loop(void)
+async_responder_loop(lstate_t *loader)
 {
     return;
 }
@@ -121,10 +156,11 @@ async_start(lstate_t *loader)
     pthread_t reader, responder;
 
     /* Spawn the reader. */
-    pthread_create(&reader, NULL, async_reader_loop, NULL);
+    int status = pthread_create(&reader, NULL, async_reader_loop, loader);
+    assert(status = 0);
 
     /* Become the responder. */
-    async_responder_loop();
+    async_responder_loop(loader);
 
     /* Never reached. */
     assert(false);
@@ -183,9 +219,7 @@ async_init(lstate_t *loader,
             entry_t *entry = &state->queue[j];
 
             entry->data = data_start + (entry_n++) * max_file_size;
-            entry->allocated = false;
-            entry->in_flight = false;
-            entry->ready = false;
+            atomic_store(&entry->flags, NONE_FLAG);
             entry->max_size = max_file_size;
             entry->path[0] = '\0';
             entry->size = 0;
