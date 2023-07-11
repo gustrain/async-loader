@@ -21,7 +21,8 @@
    SOFTWARE.
    */
 
-#ifndef __UTILS_H__
+#ifndef __UTILS_ALLOC_H_
+#define __UTILS_ALLOC_H_
 
 #include <stdio.h>
 

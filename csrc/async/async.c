@@ -23,13 +23,17 @@
 
 #include "async.h"
 
-#include "../utils/utils.h"
+#include "../utils/alloc.h"
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <errno.h>
 #include <pthread.h>
 #include <assert.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/syscall.h>
+#include <liburing.h>
 
 /* ------------- */
 /*   INTERFACE   */
@@ -87,17 +91,63 @@ async_release(wstate_t *state, uint8_t *data)
 /*   BACKEND   */
 /* ----------- */
 
-/* TODO.
-   On success, issues asynchronous IO and returns 0. On failure, returns
-   negative ERRNO value. */
-int
-async_perform_io(char *path, uint8_t *data, size_t *size, size_t max_size)
+/* On success, returns the size of a file in bytes. On failure, returns negative
+   ERRNO value. */
+off_t
+file_get_size(int fd)
 {
+    struct stat st;
+    if (fstat(fd, &st) < 0) {
+        return -errno;
+    }
+
+    /* Check device type. */
+    if (S_ISBLK(st.st_mode)) {
+        /* Block device. */
+        uint64_t bytes;
+        if (ioctl(fd, BLKGETSIZE64, &bytes) != 0) {
+            return -errno;
+        }
+        
+        return bytes;
+    } else if (S_ISREG(st.st_mode)) {
+        return st.st_size;
+    }
+    
+    /* Unknown device type. */
     return -1;
 }
 
 /* TODO.
-   Loop for reader thread. */
+   Submits an AIO for the file at PATH, for a maximum of MAX_SIZE bytes to be
+   read into the buffer DATA. Saves the file descriptor to FD, and allows AIO to
+   save number of bytes read to SIZE. On success, returns 0. On failure, returns
+   negative ERRNO value. */
+int
+async_perform_io(lstate_t *ld, entry_t *e)
+{
+    /* Open the file, get and check size. */
+    if ((e->fd = open(e->path, O_RDONLY)) < 0) {
+        return -errno;
+    };
+
+    /* Get the file's size, check it's within bounds. */
+    off_t size = file_get_size(e->fd);
+    if (size < 0 || (size_t) size > e->max_size) {
+        return -1;
+    }
+    e->size = (size_t) size;
+
+    /* Create and submit the uring AIO request. */
+    struct io_uring_seq *sqe = io_uring_get_seq(ld->ring);
+    io_uring_prep_readv(sqe, e->fd, e->iovecs, e->n_vecs, 0);
+    io_uring_sqe_set_data(sqe, e);  /* Associate request with this entry. */
+    io_uring_submit(ld->ring);
+
+    return 0;
+}
+
+/* Loop for reader thread. */
 void *
 async_reader_loop(lstate_t *ld)
 {
@@ -125,7 +175,7 @@ async_reader_loop(lstate_t *ld)
             }
 
             /* Issue the IO for this entry's filepath. */
-            if (async_perform_io(e->path, e->data, &e->size, e->max_size) < 0) {
+            if (async_perform_io(ld, e) < 0) {
                 /* What to do on failure? */
                 atomic_store(&e->flags, flags ^ PENDING_FLAG);
                 continue;
@@ -181,7 +231,8 @@ async_init(lstate_t *loader,
     /* Figure out how much memory to allocate. */
     size_t entry_size = sizeof(entry_t) + max_file_size;
     size_t queue_size = entry_size * queue_depth;
-    size_t worker_size = queue_size + sizeof(wstate_t);
+    size_t iovec_size = sizeof(struct iovec) * max_file_size / BLOCK_SIZE;
+    size_t worker_size = iovec_size + queue_size + sizeof(wstate_t);
     size_t total_size = worker_size * n_workers;
 
     /* Do the allocation. */
@@ -189,19 +240,21 @@ async_init(lstate_t *loader,
         return -ENOMEM;
     }
 
-    /*   LO                          HI
-        ┌────────┬───────┬─────────────┐
-        │wstate_t│entry_t│    file     │
-        │structs │structs│    data     │
-        └┬───────┴┬──────┴┬────────────┘
-         │        │       │
-         │        │       └►n_workers * max_file_size
+    /*   LO                                  HI
+        ┌────────┬───────┬───────┬─────────────┐
+        │wstate_t│entry_t│iovec  │    file     │
+        │structs │structs│structs│    data     │
+        └┬───────┴┬──────┴┬──────┴┬────────────┘
+         │        │       │       │
+         │        │       │       └►n_workers * queue_depth * max_file_size
+         │        │       └►n_workers * queue_depth * (max_file_size / BLOCK_SIZE) * sizeof(struct iovec)
          │        └►n_workers * queue_depth * sizeof(entry_t)
          └►n_workers * sizeof(wstate_t)
     */
 
     entry_t *entries_start = n_workers * sizeof(wstate_t);
-    uint8_t *data_start = entries_start + n_workers * queue_depth * sizeof(entry_t);
+    struct iovec *iovec_start = entries_start + n_workers * queue_depth * sizeof(entry_t);
+    uint8_t *data_start = iovec_start + n_workers * queue_depth * (max_file_size / BLOCK_SIZE) * sizeof(struct iovec);
 
     /* Assign all of the correct locations to each state/queue. */
     size_t entry_n = 0;
@@ -218,17 +271,34 @@ async_init(lstate_t *loader,
         for (size_t j = 0; j < queue_depth; j++) {
             entry_t *entry = &state->queue[j];
 
-            entry->data = data_start + (entry_n++) * max_file_size;
+            entry->data = data_start + (entry_n) * max_file_size;
+            entry->n_vecs = max_file_size / BLOCK_SIZE;
+            entry->iovecs = iovec_start + entry_n * queue_depth * entry->n_vecs * sizeof(struct iovec);
+            for (size_t k = 0; k < entry->n_vecs; k++) {
+                /* Assign each iovec contiguously in the entry's data region. */
+                entry->iovecs[k].iov_base = entry->data + k * BLOCK_SIZE;
+                entry->iovecs[k].iov_len = BLOCK_SIZE;
+            }
+
+            /* Configure entry. */
             atomic_store(&entry->flags, NONE_FLAG);
             entry->max_size = max_file_size;
             entry->path[0] = '\0';
             entry->size = 0;
+
+            entry_n++;
         }
     }
 
     /* Set the loader's config states. */
     loader->n_states = n_workers;
     loader->dispatch_n = min_dispatch_n;
+
+    /* Initialize liburing. */
+    if (io_uring_queue_init(n_workers * queue_depth, &loader->ring, 0) != 0) {
+        mmap_free(loader->states, total_size);
+        return -errno;
+    }
 
     return 0;
 }

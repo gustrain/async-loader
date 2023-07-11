@@ -21,7 +21,7 @@
    SOFTWARE.
    */
 
-#include "utils.h"
+#include "alloc.h"
 
 #include <stdlib.h>
 #include <assert.h>

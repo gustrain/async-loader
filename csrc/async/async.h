@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdatomic.h>
+#include <linux/io_uring.h>
 
 #define MAX_PATH_LEN (128)
 
@@ -39,10 +40,16 @@
 
 /* Queue entry. */
 typedef struct {
-    char     path[MAX_PATH_LEN];    /* Filepath data was read from. */
-    uint8_t *data;                  /* File data. */
-    size_t   size;                  /* Size of file data in bytes. */
-    size_t   max_size;              /* Maximum size of file data in bytes. */
+    char          path[MAX_PATH_LEN];   /* Filepath data was read from. */
+    int           fd;                   /* File descriptor. Belongs to loader.
+                                           Not to be touched by workers. Only
+                                           valid while IO is in-flight. */
+    struct iovec *iovecs;               /* Array of MAX_SIZE / BLOCK_SIZE iovec
+                                           structs used for liburing AIO. */
+    size_t        n_vecs;               /* Number of structs in IOVECS. */
+    uint8_t      *data;                 /* File data. */
+    size_t        size;                 /* Size of file data in bytes. */
+    size_t        max_size;             /* Maximum file data size in bytes. */
 
     /* Synchronization. */
     atomic_int flags;   /* ALLOCATED = 0b0001 -- Entry is currently being used.
@@ -57,17 +64,17 @@ typedef struct {
 typedef struct {
     /* Input queue. */
     entry_t *queue;     /* CAPACITY queue entries. */
-    uint64_t next;      /* Next QUEUE entry to check. */
+    size_t   next;      /* Next QUEUE entry to check. */
     size_t   used;      /* QUEUE entries currently in use. */
     size_t   capacity;  /* Total entries in QUEUE. */
 } wstate_t;
 
 /* Loader (reader + responder) state. */
 typedef struct {
-    wstate_t *states;       /* N_STATES worker states. */
-    size_t    n_states;     /* Number of worker states in STATES. */
-
-    size_t    dispatch_n;   /* Number of async IO requests to send at once. */
+    wstate_t       *states;       /* N_STATES worker states. */
+    size_t          n_states;     /* Worker states in STATES. */
+    size_t          dispatch_n;   /* Async IO requests to send at once. */
+    struct io_uring ring;         /* Submission ring buffer for liburing. */
 } lstate_t;
 
 #endif
