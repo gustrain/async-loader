@@ -30,40 +30,27 @@
 
 #define MAX_PATH_LEN (128)
 
-/* Input queue entry. */
+/* Queue entry. */
 typedef struct {
-    char        path[MAX_PATH_LEN];     /* Filepath of the requested file. */
+    char     path[MAX_PATH_LEN];    /* Filepath data was read from. */
+    uint8_t *data;                  /* File data. */
+    size_t   size;                  /* Size of file data in bytes. */
+    size_t   max_size;              /* Maximum size of file data in bytes. */
 
     /* Synchronization. */
     atomic_bool allocated;  /* Entry is currently being used. */
     atomic_bool in_flight;  /* Entry has in-flight IO. */
-} iq_entry_t;
-
-/* Output queue entry. */
-typedef struct {
-    uint8_t *data;      /* File data. */
-    size_t   size;      /* Size of file data in bytes. */
-    size_t   max_size;  /* Maximum size of file data in bytes. */
-
-    /* Synchronization. */
-    atomic_bool allocated;  /* Entry is currently being used. */
     atomic_bool ready;      /* Data is ready, and this entry has not yet been
                                served to a worker. */
-} oq_entry_t;
+} entry_t;
 
 /* Worker state. Input/output queues unique to that worker. */
 typedef struct {
     /* Input queue. */
-    iq_entry_t *in_queue;       /* IN_CAPACITY input queue entries. */
-    iq_entry_t *in_next;        /* Next IN_QUEUE entry to check. */
-    size_t      in_used;        /* IN_QUEUE entries currently in use. */
-    size_t      in_capacity;    /* Total entries in IN_QUEUE. */
-
-    /* Output queue. */
-    oq_entry_t *out_queue;      /* OUT_CAPACITY output queue entries. */
-    oq_entry_t *out_next;       /* Next OUT_QUEUE entry to check. */
-    size_t      out_used;       /* OUT_QUEUE entries currently in used. */
-    size_t      out_capacity;   /* Total entries in OUT_QUEUE. */
+    entry_t *queue;     /* CAPACITY queue entries. */
+    entry_t *next;      /* Next QUEUE entry to check. */
+    size_t   used;      /* QUEUE entries currently in use. */
+    size_t   capacity;  /* Total entries in QUEUE. */
 } wstate_t;
 
 /* Loader (reader + responder) state. */
