@@ -35,6 +35,7 @@
 #include <sys/syscall.h>
 #include <liburing.h>
 
+
 /* ------------- */
 /*   INTERFACE   */
 /* ------------- */
@@ -118,8 +119,7 @@ file_get_size(int fd)
     return -1;
 }
 
-/* TODO.
-   Submits an AIO for the file at PATH, for a maximum of MAX_SIZE bytes to be
+/* Submits an AIO for the file at PATH, for a maximum of MAX_SIZE bytes to be
    read into the buffer DATA. Saves the file descriptor to FD, and allows AIO to
    save number of bytes read to SIZE. On success, returns 0. On failure, returns
    negative ERRNO value. */
@@ -190,16 +190,38 @@ async_reader_loop(lstate_t *ld)
     }
 }
 
-/* TODO.
-   Loop for responder thread. */
+/* Loop for responder thread. */
 void *
-async_responder_loop(lstate_t *loader)
+async_responder_loop(lstate_t *ld)
 {
+    struct io_uring_cqe *cqe;
+    while (true) {
+        int status = io_uring_wait_cqe(&ld->ring, &cqe);
+        if (status < 0) {
+            printf(stderr, "io_uring_wait_cqe failed\n");
+            continue;
+        } else if (cqe->res < 0) {
+            fprintf(stderr, "async read failed\n");
+            continue;
+        }
+
+        /* Get the entry. If already pending, leave it in the liburing
+           completion queue and re-try. */
+        entry_t *e = io_uring_cqe_get_data(cqe);
+        int flags = atomic_fetch_or(&e->flags, PENDING_FLAG);
+        if (flags & PENDING_FLAG) {
+            continue;
+        }
+
+        /* Mark the entry as allocated, not in-flight, and ready to be read, and
+           then remove it from the liburing completion queue. */ 
+        atomic_store(&e->flags, ALLOCATED_FLAG | READY_FLAG);
+        io_uring_cqe_seen(&ld->ring, cqe);
+    }
     return;
 }
 
-/* TODO.
-   Given a loader, starts the reader and responder threads. Does not return. */
+/* Given a loader, starts the reader and responder threads. Does not return. */
 void
 async_start(lstate_t *loader)
 {
@@ -294,11 +316,10 @@ async_init(lstate_t *loader,
     loader->n_states = n_workers;
     loader->dispatch_n = min_dispatch_n;
 
-    /* Initialize liburing. 
-    
-       NOTE: The allocation here is going to be a problem. Modify liburing to
-             use mmap alloc / take an allocation function?
-       */
+    /* Initialize liburing. We don't need to worry about this not using shared
+       memory because while worker interact with the shared queues, the IO
+       submissions (thus interactions with liburing) are done only by this
+       reader/responder process. */
     if (io_uring_queue_init(n_workers * queue_depth, &loader->ring, 0) != 0) {
         mmap_free(loader->states, total_size);
         return -errno;
