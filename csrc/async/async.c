@@ -37,64 +37,80 @@
 #include <liburing.h>
 
 
+/* Insert ELEM into a doubly linked list, maintaining FIFO order. */
+void
+fifo_insert(entry_t **head, pthread_spinlock_t *lock, entry_t *elem)
+{
+    /* Handle case of empty list. */
+    pthread_spin_lock(lock);
+    if (*head == NULL) {
+        *head = elem;
+        elem->prev = NULL;
+        elem->next = NULL;
+        pthread_spin_unlock(lock);
+        return;
+    }
+
+    /* Otherwise, insert into back of list. */
+    elem->prev = (*head)->prev;
+    elem->next = (*head);
+    (*head)->prev->next = elem;
+    (*head)->prev = elem;
+
+    pthread_spin_unlock(lock);
+}
+
+/* Pop from a doubly linked list, maintaining FIFO order. */
+entry_t *
+fifo_pop(entry_t **head, pthread_spinlock_t *lock)
+{
+    pthread_spin_lock(lock);
+    entry_t *out = *head;
+    if (out == NULL) {
+        pthread_spin_unlock(lock);
+        return NULL;
+    }
+
+    (*head)->next->prev = (*head)->prev;
+    (*head)->prev->next = (*head)->next;
+    *head = (*head)->next;
+
+    /* Handle case of resulting list being empty. */
+    if (*head = out) {
+        *head = NULL;
+    }
+    pthread_spin_unlock(lock);
+
+    return out;
+}
+
 /* ------------- */
 /*   INTERFACE   */
 /* ------------- */
 
-/* TODO.
-   Worker interface to input queue. On success, inserts a request into the
+/* Worker interface to input queue. On success, inserts a request into the
    input queue and returns true. On failure, returns false (queue full). */
 bool
-async_request(wstate_t *state, char *path)
+async_try_request(wstate_t *state, char *path)
 {
-    /* Loop to find free entry. */
-
-    /* Atomically claim entry (allocated => true). */
+    for (size_t i = 0; i < state->capacity; i++);
+    /* Claim an entry from the free list. */
 
     /* Configure entry. */
 
-    /* Atomically mark entry ready. */
+    /* Move entry to ready list. */
 
     return false;
 }
 
-/* Worker interface to output queue. On success, returns a pointer to the
-   beginning of a file in the output queue, and sets SIZE to the size of the
-   file in bytes. On failure, NULL is returned and SIZE is unmodified. */
-uint8_t *
-async_try_get(wstate_t *state, size_t *size)
+/* Worker interface to output queue. On success, pops an entry from the
+   completed queue and returns a pointer to it. On failure (e.g., list empty),
+   NULL is returned and SIZE is unmodified. */
+entry_t *
+async_try_get(wstate_t *state)
 {
-    for (size_t i = 0; i < state->capacity; i++) {
-        entry_t *e = &state->queue[i];
-
-        /* Load flags. Since only workers can unset the ready flag, there's no
-           potential to race by examining the flags prior to acquiring the
-           entry. This check prevents us ~always having an entry marked pending,
-           even when we're just planning to release it. */
-        int flags = atomic_load(&e->flags);
-        if (~flags & READY_FLAG) {
-            continue;
-        }
-
-        /* We know the entry is ready, so we set the pending flag, and skip if
-           it was already set. */
-        flags = atomic_fetch_or(&e->flags, PENDING_FLAG);
-        if (flags & PENDING_FLAG || ~flags & READY_FLAG) {
-            continue;
-        }
-
-        /* Toggle off the READY flag, since this entry has now been served. We
-           leave the pending flag set, however, since the caller is given access
-           to the DATA field. Pending is only unset once the release function
-           has been called on this entry. */
-        atomic_store(&e->flags, ALLOCATED_FLAG | PENDING_FLAG);
-
-        *size = e->size;
-        return e->data;
-    }
-
-    /* If nothing is found, return NULL. */
-    return NULL;
+    /* Try to get an entry from the completed list. Return NULL if empty. */
+    return fifo_pop(&state->completed, &state->completed_lock);
 }
 
 /* Marks an entry in the output queue as complete (reclaimable). Pending flag
@@ -102,16 +118,16 @@ async_try_get(wstate_t *state, size_t *size)
 void
 async_release(wstate_t *state, entry_t *e)
 {
+    /* Close the file used. */
+    close(e->fd);
+
     /* Reset state. */
     e->size = 0;
     e->path[0] = '\0';
-
-    /* Release the file descriptor. */
-    close(e->fd);
     e->fd = -1;
 
-    /* Mark unallocated and release pending. */
-    atomic_store(&e->flags, NONE_FLAG);
+    /* Insert into the free list. */
+    fifo_insert(&state->free, &state->free_lock, e);
 }
 
 
@@ -179,41 +195,23 @@ void *
 async_reader_loop(lstate_t *ld)
 {
     /* Loop through the outer states array round-robin style, issuing one IO per
-       visit to each worker's queue. */
+       visit to each worker's queue, if that queue has a valid request. */
     size_t i = 0;
+    entry_t *e = NULL;
     while (true) {
         wstate_t *st = &ld->states[i++ % ld->n_states];
 
-        /* Check the queue. */
-        for (size_t j = 0; j < st->capacity; j++) {
-            entry_t *e = &st->queue[(st->next + j) % st->capacity];
-
-            /* Get the flags. Skip if already pending. */
-            int flags = atomic_fetch_or(&e->flags, PENDING_FLAG);
-            if (flags & PENDING_FLAG) {
-                continue;
-            }
-
-            /* Otherwise, examine to see if it's a viable entry. */
-            if (!(flags & ALLOCATED_FLAG) || (flags & IN_FLIGHT_FLAG)) {
-                /* Toggle off the pending flag and try another entry. */
-                atomic_store(&e->flags, flags ^ PENDING_FLAG);
-                continue;
-            }
-
-            /* Issue the IO for this entry's filepath. */
-            if (async_perform_io(ld, e) < 0) {
-                /* What to do on failure? */
-                atomic_store(&e->flags, flags ^ PENDING_FLAG);
-                continue;
-            };
-
-
-            /* Toggle the pending flag off, and the in-flight flag on, once
-                we've finished initiating the IO for this entry. */
-            atomic_store(&e->flags, flags ^ (PENDING_FLAG | IN_FLIGHT_FLAG));
-            break;
+        /* Take an item from the ready list. */
+        if ((e = fifo_pop(&st->ready, &st->ready_lock)) == NULL) {
+            continue;
         }
+
+        /* Issue the IO for this entry's filepath. */
+        if (async_perform_io(ld, e) < 0) {
+            /* What to do on failure? */
+            fifo_insert(&st->ready, &st->ready_lock, e);
+            continue;
+        };
     }
 }
 
@@ -232,18 +230,10 @@ async_responder_loop(lstate_t *ld)
             continue;
         }
 
-        /* Get the entry. If already pending, leave it in the liburing
-           completion queue and re-try. */
+        /* Get the entry associated with the IO, and place it into the list for
+           entries with completed IO. */
         entry_t *e = io_uring_cqe_get_data(cqe);
-        int flags = atomic_fetch_or(&e->flags, PENDING_FLAG);
-        if (flags & PENDING_FLAG) {
-            continue;
-        }
-
-        /* Mark the entry as allocated, not in-flight, and ready to be read, and
-           then remove it from the liburing completion queue. */ 
-        atomic_store(&e->flags, ALLOCATED_FLAG | READY_FLAG);
-        io_uring_cqe_seen(&ld->ring, cqe);
+        fifo_insert(&e->worker->completed, &e->worker->completed_lock, e);
     }
     return;
 }
@@ -311,31 +301,48 @@ async_init(lstate_t *loader,
     for (size_t i = 0; i < n_workers; i++) {
         wstate_t *state = &loader->states[i];
 
-        state->next = state;
         state->capacity = queue_depth;
 
         /* Assign memory for queues and file data. */
         state->queue = &entries_start[entry_n];
         for (size_t j = 0; j < queue_depth; j++) {
-            entry_t *entry = &state->queue[j];
+            entry_t *e = &state->queue[j];
 
-            entry->data = data_start + (entry_n) * max_file_size;
-            entry->n_vecs = max_file_size / BLOCK_SIZE;
-            entry->iovecs = iovec_start + entry_n * queue_depth * entry->n_vecs * sizeof(struct iovec);
-            for (size_t k = 0; k < entry->n_vecs; k++) {
+            e->data = data_start + (entry_n) * max_file_size;
+            e->n_vecs = max_file_size / BLOCK_SIZE;
+            e->iovecs = iovec_start + entry_n * queue_depth * e->n_vecs * sizeof(struct iovec);
+            for (size_t k = 0; k < e->n_vecs; k++) {
                 /* Assign each iovec contiguously in the entry's data region. */
-                entry->iovecs[k].iov_base = entry->data + k * BLOCK_SIZE;
-                entry->iovecs[k].iov_len = BLOCK_SIZE;
+                e->iovecs[k].iov_base = e->data + k * BLOCK_SIZE;
+                e->iovecs[k].iov_len = BLOCK_SIZE;
+
             }
 
             /* Configure entry. */
-            atomic_store(&entry->flags, NONE_FLAG);
-            entry->max_size = max_file_size;
-            entry->path[0] = '\0';
-            entry->size = 0;
+            e->max_size = max_file_size;
+            e->path[0] = '\0';
+            e->worker = state;
+            e->size = 0;
+
+            /* Link this entry to the following and previous entries, in order
+               to initialize the free list with all entries. */
+            e->next = &state->queue[(j + 1) % queue_depth];
+            e->prev = &state->queue[(j - 1) % queue_depth];
 
             entry_n++;
         }
+
+        /* Initialize status lists. */
+        state->free = state->queue;
+        state->ready = NULL;
+        state->completed = NULL;
+        state->served = NULL;
+
+        /* Initialize the status list locks. */
+        pthread_spinlock_init(&state->free_lock);
+        pthread_spinlock_init(&state->ready_lock);
+        pthread_spinlock_init(&state->completed_lock);
+        pthread_spinlock_init(&state->served_lock);
     }
 
     /* Set the loader's config states. */

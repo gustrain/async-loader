@@ -26,20 +26,14 @@
 
 #include <stdlib.h>
 #include <stdint.h>
+#include <pthread.h>
 #include <stdatomic.h>
 #include <linux/io_uring.h>
 
 #define MAX_PATH_LEN (128)
 
-#define ALLOCATED_FLAG  (0b0001)
-#define IN_FLIGHT_FLAG  (0b0010)
-#define PENDING_FLAG    (0b0100)
-#define READY_FLAG      (0b1000)
-#define NONE_FLAG       (0b0000)
-
-
 /* Queue entry. */
-typedef struct {
+typedef struct queue_entry {
     char          path[MAX_PATH_LEN];   /* Filepath data was read from. */
     int           fd;                   /* File descriptor. Belongs to loader.
                                            Not to be touched by workers. Only
@@ -51,21 +45,38 @@ typedef struct {
     size_t        size;                 /* Size of file data in bytes. */
     size_t        max_size;             /* Maximum file data size in bytes. */
 
-    /* Synchronization. */
-    atomic_int flags;   /* ALLOCATED = 0b0001 -- Entry is currently being used.
-                           IN FLIGHT = 0b0010 -- Entry has in-flight IO.
-                           PENDING   = 0b0100 -- Actively being examined. Skip.
-                           READY     = 0b1000 -- Data is ready, and this entry
-                                                 has not yet been served to a
-                                                 worker. */
+    /* Free/ready link list. */
+    struct worker_state *worker;        /* Worker that owns this queue. */
+    struct queue_entry  *next;          /* Next entry in status list. */
+    struct queue_entry  *prev;          /* Previous entry in status list. */
 } entry_t;
 
 /* Worker state. Input/output queues unique to that worker. */
-typedef struct {
-    /* Input queue. */
-    entry_t        *queue;      /* CAPACITY queue entries. */
-    size_t          next;       /* Next QUEUE entry to check. */
-    size_t          capacity;   /* Total entries in QUEUE. */
+typedef struct worker_state {
+    /* Input buffer. */
+    size_t   capacity;  /* Total number of entries in QUEUE. */
+    entry_t *queue;     /* CAPACITY queue entries. */
+
+    /* Status lists. Mutually exclusive, all using NEXT field of entry. Entries
+       move exclusively in a loop, and are only ever present in at most 1 list.
+
+            free -> ready -> completed -> served -> free
+        
+       Lists should be maintained in FIFO order, and must be looped so that the
+       head's PREV field points to the tail of the list. When an entry has IO
+       issued, it is removed from the ready list. It is only added to the
+       completed list once that IO has completed. In the interim it is tracked
+       only by the uring buffer. */
+    entry_t *free;          /* Unused queue entries. */
+    entry_t *ready;         /* Queue entries ready to have IO issued. */
+    entry_t *completed;     /* Queue entries with completed IO. */
+    entry_t *served;        /* Queue entries that have been read by a worker. */
+
+    /* Synchronization. */
+    pthread_spinlock_t free_lock;       /* Protects FREE. */
+    pthread_spinlock_t ready_lock;      /* Protects READY. */
+    pthread_spinlock_t completed_lock;  /* Protects COMPLETED. */
+    pthread_spinlock_t served_lock;     /* Protects SERVED. */
 } wstate_t;
 
 /* Loader (reader + responder) state. */
