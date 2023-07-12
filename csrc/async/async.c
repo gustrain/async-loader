@@ -35,6 +35,7 @@
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <liburing.h>
+#include <string.h>
 
 
 /* Insert ELEM into a doubly linked list, maintaining FIFO order. */
@@ -93,14 +94,17 @@ fifo_pop(entry_t **head, pthread_spinlock_t *lock)
 bool
 async_try_request(wstate_t *state, char *path)
 {
-    for (size_t i = 0; i < state->capacity; i++);
-    /* Claim an entry from the free list. */
+    /* Get a free entry. Return false if none available. */
+    entry_t *e = fifo_pop(&state->free, &state->free_lock);
+    if (e == NULL) {
+        return false;
+    }
 
-    /* Configure entry. */
+    /* Configure the entry and move it into the ready list. */
+    strncpy(e->path, path, MAX_PATH_LEN);
+    fifo_insert(&state->ready, &state->ready_lock, e);
 
-    /* Move entry to ready list. */
-
-    return false;
+    return true;
 }
 
 /* Worker interface to output queue. On success, pops an entry from the
