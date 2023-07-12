@@ -31,6 +31,7 @@
 #include <pthread.h>
 #include <assert.h>
 #include <fcntl.h>
+#include <unistd.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <liburing.h>
@@ -57,8 +58,7 @@ async_request(wstate_t *state, char *path)
     return false;
 }
 
-/* TODO.
-   Worker interface to output queue. On success, returns a pointer to the
+/* Worker interface to output queue. On success, returns a pointer to the
    beginning of a file in the output queue, and sets SIZE to the size of the
    file in bytes. On failure, NULL is returned and SIZE is unmodified. */
 uint8_t *
@@ -97,18 +97,21 @@ async_try_get(wstate_t *state, size_t *size)
     return NULL;
 }
 
-/* TODO.
-   Marks an entry in the output queue as complete (reclaimable). */
+/* Marks an entry in the output queue as complete (reclaimable). Pending flag
+   must be held for the entry when calling this function. */
 void
-async_release(wstate_t *state, uint8_t *data)
+async_release(wstate_t *state, entry_t *e)
 {
-    /* Atomically mark unallocated. */
+    /* Reset state. */
+    e->size = 0;
+    e->path[0] = '\0';
 
-    /* Atomically decreased used quantity. */
+    /* Release the file descriptor. */
+    close(e->fd);
+    e->fd = -1;
 
-    /* I think this order is OK? */
-
-    return;
+    /* Mark unallocated and release pending. */
+    atomic_store(&e->flags, NONE_FLAG);
 }
 
 
@@ -310,7 +313,6 @@ async_init(lstate_t *loader,
 
         state->next = state;
         state->capacity = queue_depth;
-        state->used = 0;
 
         /* Assign memory for queues and file data. */
         state->queue = &entries_start[entry_n];

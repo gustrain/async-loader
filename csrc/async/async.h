@@ -63,10 +63,9 @@ typedef struct {
 /* Worker state. Input/output queues unique to that worker. */
 typedef struct {
     /* Input queue. */
-    entry_t *queue;     /* CAPACITY queue entries. */
-    size_t   next;      /* Next QUEUE entry to check. */
-    size_t   used;      /* QUEUE entries currently in use. */
-    size_t   capacity;  /* Total entries in QUEUE. */
+    entry_t        *queue;      /* CAPACITY queue entries. */
+    size_t          next;       /* Next QUEUE entry to check. */
+    size_t          capacity;   /* Total entries in QUEUE. */
 } wstate_t;
 
 /* Loader (reader + responder) state. */
