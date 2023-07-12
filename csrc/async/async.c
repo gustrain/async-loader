@@ -33,6 +33,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <sys/ioctl.h>
 #include <sys/syscall.h>
 #include <liburing.h>
 #include <string.h>
@@ -77,7 +78,7 @@ fifo_pop(entry_t **head, pthread_spinlock_t *lock)
     *head = (*head)->next;
 
     /* Handle case of resulting list being empty. */
-    if (*head = out) {
+    if (*head == out) {
         *head = NULL;
     }
     pthread_spin_unlock(lock);
@@ -196,8 +197,10 @@ async_perform_io(lstate_t *ld, entry_t *e)
 
 /* Loop for reader thread. */
 void *
-async_reader_loop(lstate_t *ld)
+async_reader_loop(void *arg)
 {
+    lstate_t *ld = (lstate_t *) arg;
+
     /* Loop through the outer states array round-robin style, issuing one IO per
        visit to each worker's queue, if that queue has a valid request. */
     size_t i = 0;
@@ -217,17 +220,21 @@ async_reader_loop(lstate_t *ld)
             continue;
         };
     }
+
+    return NULL;
 }
 
 /* Loop for responder thread. */
 void *
-async_responder_loop(lstate_t *ld)
+async_responder_loop(void *arg)
 {
+    lstate_t *ld = (lstate_t *) arg;
+
     struct io_uring_cqe *cqe;
     while (true) {
         int status = io_uring_wait_cqe(&ld->ring, &cqe);
         if (status < 0) {
-            printf(stderr, "io_uring_wait_cqe failed\n");
+            fprintf(stderr, "io_uring_wait_cqe failed\n");
             continue;
         } else if (cqe->res < 0) {
             fprintf(stderr, "async read failed\n");
@@ -239,18 +246,18 @@ async_responder_loop(lstate_t *ld)
         entry_t *e = io_uring_cqe_get_data(cqe);
         fifo_insert(&e->worker->completed, &e->worker->completed_lock, e);
     }
-    return;
+
+    return NULL;
 }
 
 /* Given a loader, starts the reader and responder threads. Does not return. */
 void
 async_start(lstate_t *loader)
 {
-    pthread_t reader, responder;
-
     /* Spawn the reader. */
+    pthread_t reader;
     int status = pthread_create(&reader, NULL, async_reader_loop, loader);
-    assert(status = 0);
+    assert(status == 0);
 
     /* Become the responder. */
     async_responder_loop(loader);
@@ -295,13 +302,12 @@ async_init(lstate_t *loader,
          └►n_workers * sizeof(wstate_t)
     */
 
-    entry_t *entries_start = n_workers * sizeof(wstate_t);
-    struct iovec *iovec_start = entries_start + n_workers * queue_depth * sizeof(entry_t);
-    uint8_t *data_start = iovec_start + n_workers * queue_depth * (max_file_size / BLOCK_SIZE) * sizeof(struct iovec);
+    entry_t *entries_start = (entry_t *) (loader->states + n_workers * sizeof(wstate_t));
+    struct iovec *iovec_start = (struct iovec *) (entries_start + n_workers * queue_depth * sizeof(entry_t));
+    uint8_t *data_start = (uint8_t *) (iovec_start + n_workers * queue_depth * (max_file_size / BLOCK_SIZE) * sizeof(struct iovec));
 
     /* Assign all of the correct locations to each state/queue. */
     size_t entry_n = 0;
-    void *cur_pos = loader->states;
     for (size_t i = 0; i < n_workers; i++) {
         wstate_t *state = &loader->states[i];
 
@@ -343,10 +349,10 @@ async_init(lstate_t *loader,
         state->served = NULL;
 
         /* Initialize the status list locks. */
-        pthread_spinlock_init(&state->free_lock);
-        pthread_spinlock_init(&state->ready_lock);
-        pthread_spinlock_init(&state->completed_lock);
-        pthread_spinlock_init(&state->served_lock);
+        pthread_spin_init(&state->free_lock, PTHREAD_PROCESS_SHARED);
+        pthread_spin_init(&state->ready_lock, PTHREAD_PROCESS_SHARED);
+        pthread_spin_init(&state->completed_lock, PTHREAD_PROCESS_SHARED);
+        pthread_spin_init(&state->served_lock, PTHREAD_PROCESS_SHARED);
     }
 
     /* Set the loader's config states. */
