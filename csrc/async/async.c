@@ -64,12 +64,36 @@ async_request(wstate_t *state, char *path)
 uint8_t *
 async_try_get(wstate_t *state, size_t *size)
 {
-    /* Loop through the output queue to find an entry. */
+    for (size_t i = 0; i < state->capacity; i++) {
+        entry_t *e = &state->queue[i];
 
-    /* Atomically claim entry. */
+        /* Load flags. Since only workers can unset the ready flag, there's no
+           potential to race by examining the flags prior to acquiring the
+           entry. This check prevents us ~always having an entry marked pending,
+           even when we're just planning to release it. */
+        int flags = atomic_load(&e->flags);
+        if (~flags & READY_FLAG) {
+            continue;
+        }
 
-    /* Return entry->data. */
+        /* We know the entry is ready, so we set the pending flag, and skip if
+           it was already set. */
+        flags = atomic_fetch_or(&e->flags, PENDING_FLAG);
+        if (flags & PENDING_FLAG || ~flags & READY_FLAG) {
+            continue;
+        }
 
+        /* Toggle off the READY flag, since this entry has now been served. We
+           leave the pending flag set, however, since the caller is given access
+           to the DATA field. Pending is only unset once the release function
+           has been called on this entry. */
+        atomic_store(&e->flags, ALLOCATED_FLAG | PENDING_FLAG);
+
+        *size = e->size;
+        return e->data;
+    }
+
+    /* If nothing is found, return NULL. */
     return NULL;
 }
 
