@@ -121,14 +121,14 @@ async_try_request(wstate_t *state, char *path)
 
 /* Worker interface to output queue. On success, pops an entry from the
    completed queue and returns a pointer to it. On failure (e.g., list empty),
-   NULL is returned and SIZE is unmodified. */
+   NULL is returned. */
 entry_t *
 async_try_get(wstate_t *state)
 {
     /* Try to get an entry from the completed list. Return NULL if empty. This
-       read is racey, but the only goal is to prevent hogging the when the list
-       is empty. */
-    if (&state->completed != NULL) {
+       read is racy, but the only goal is to prevent hogging the lock when the
+       list is empty. */
+    if (state->completed != NULL) {
         return fifo_pop(&state->completed, &state->completed_lock);
     }
     
