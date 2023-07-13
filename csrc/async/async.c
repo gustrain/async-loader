@@ -104,7 +104,7 @@ async_try_request(wstate_t *state, char *path)
     printf("Got free entry. Inserting request for %s.\n", path);
 
     /* Configure the entry and move it into the ready list. */
-    strncpy(e->path, path, MAX_PATH_LEN);
+    strncpy(e->path, path, MAX_PATH_LEN + 1);
     fifo_insert(&state->ready, &state->ready_lock, e);
 
     printf("Inserted request for %s.\n", path);

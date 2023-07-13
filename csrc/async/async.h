@@ -35,7 +35,7 @@
 
 /* Queue entry. */
 typedef struct queue_entry {
-    char          path[MAX_PATH_LEN];   /* Filepath data was read from. */
+    char          path[MAX_PATH_LEN+1]; /* Filepath data was read from. */
     int           fd;                   /* File descriptor. Belongs to loader.
                                            Not to be touched by workers. Only
                                            valid while IO is in-flight. */
