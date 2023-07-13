@@ -200,7 +200,7 @@ async_perform_io(lstate_t *ld, entry_t *e)
     off_t size = file_get_size(e->fd);
     if (size < 0 || (size_t) size > e->max_size) {
         close(e->fd);
-        return -1;
+        return -E2BIG;
     }
     e->size = (size_t) size;
 
@@ -259,7 +259,7 @@ async_responder_loop(void *arg)
             printf("status = %d (%s).\n", status, strerror(status));
             continue;
         } else if (cqe->res < 0) {
-            printf("cqe->res = %d (%s) (fd = %d).\n", cqe->res, strerror(cqe->res), ((entry_t *) cqe->user_data)->fd);
+            printf("cqe->res = %d (%s) (fd = %d, path = %d).\n", cqe->res, strerror(cqe->res), ((entry_t *) cqe->user_data)->fd, ((entry_t *) cqe->user_data)->path);
             continue;
         }
         io_uring_cqe_seen(&ld->ring, cqe);
