@@ -237,6 +237,7 @@ async_responder_loop(void *arg)
 
     struct io_uring_cqe *cqe;
     while (true) {
+        printf("calling io_uring_wait_cqe.\n");
         int status = io_uring_wait_cqe(&ld->ring, &cqe);
         printf("io_uring_wait_cqe returned.\n");
         if (status < 0) {
