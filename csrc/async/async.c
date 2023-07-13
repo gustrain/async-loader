@@ -114,6 +114,15 @@ async_try_request(wstate_t *state, char *path)
     strncpy(e->path, path, MAX_PATH_LEN + 1);
     fifo_push(&state->ready, &state->ready_lock, e);
 
+    if (state->ready != NULL) {
+        entry_t *foo = state->ready;
+        int i = 0;
+        do {
+            printf("(BBB) ready[%d] = %s.\n", i, foo->path);
+            foo = foo->next;
+        } while (foo != NULL && foo != state->ready);
+    }
+
     printf("Inserted request for %s.\n", path);
 
     return true;
@@ -230,7 +239,7 @@ async_reader_loop(void *arg)
             entry_t *foo = st->ready;
             int i = 0;
             do {
-                printf("ready[%d] = %s.\n", i, foo->path);
+                printf("(AAA) ready[%d] = %s.\n", i, foo->path);
                 foo = foo->next;
             } while (foo != NULL && foo != st->ready);
         }
