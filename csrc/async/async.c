@@ -351,7 +351,7 @@ async_init(lstate_t *loader,
     uint8_t *data_start  = iovec_start + iovec_bytes;
 
     /* Ensure that data is block-aligned. */
-    data_start += ((ptrdiff_t) data_start) % BLOCK_SIZE;
+    data_start += ((uint64_t) data_start) % BLOCK_SIZE;
 
     printf("states_start  = %p (size = %lu)\n"
            "entries_start = %p (size = %lu) (offset = %lu)\n"
