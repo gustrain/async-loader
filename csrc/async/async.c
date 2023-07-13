@@ -306,9 +306,9 @@ async_init(lstate_t *loader,
     /* Figure out how much memory to allocate. */
     size_t entry_size = sizeof(entry_t) + max_file_size;
     size_t queue_size = entry_size * queue_depth;
-    size_t iovec_size = sizeof(struct iovec) * max_file_size / BLOCK_SIZE;
+    size_t iovec_size = sizeof(struct iovec) * (max_file_size / BLOCK_SIZE);
     size_t worker_size = iovec_size + queue_size + sizeof(wstate_t);
-    size_t total_size = worker_size * n_workers;
+    size_t total_size = worker_size * n_workers + BLOCK_SIZE;   /* + BLOCK_SIZE ensure sufficient memory after data alignment. */
 
     printf("entry_size  = %lu\n"
            "queue_size  = %lu\n"
@@ -350,6 +350,9 @@ async_init(lstate_t *loader,
     uint8_t *iovec_start = entry_start + entry_bytes;
     uint8_t *data_start  = iovec_start + iovec_bytes;
 
+    /* Ensure that data is block-aligned. */
+    data_start += ((ptrdiff_t) data_start) % BLOCK_SIZE;
+
     printf("states_start  = %p (size = %lu)\n"
            "entries_start = %p (size = %lu) (offset = %lu)\n"
            "iovec_start   = %p (size = %lu) (offset = %lu)\n"
@@ -371,7 +374,10 @@ async_init(lstate_t *loader,
         for (size_t j = 0; j < queue_depth; j++) {
             entry_t *e = &state->queue[j];
 
-            e->data = data_start + (entry_n) * max_file_size;
+
+            /* Data needs to be block (4k) aligned. */
+            assert(max_file_size % BLOCK_SIZE == 0);
+            e->data = data_start + entry_n * max_file_size;
             e->n_vecs = max_file_size / BLOCK_SIZE;
             e->iovecs = (struct iovec *) (iovec_start + entry_n * queue_depth *
                                           e->n_vecs * sizeof(struct iovec));
@@ -379,6 +385,7 @@ async_init(lstate_t *loader,
                 /* Assign each iovec contiguously in the entry's data region. */
                 e->iovecs[k].iov_base = e->data + k * BLOCK_SIZE;
                 e->iovecs[k].iov_len = BLOCK_SIZE;
+                assert(((uint64_t) e->iovecs[k].iov_base) % BLOCK_SIZE == 0);
 
             }
 

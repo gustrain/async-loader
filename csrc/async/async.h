@@ -82,10 +82,10 @@ typedef struct worker_state {
 
 /* Loader (reader + responder) state. */
 typedef struct {
-    wstate_t       *states;       /* N_STATES worker states. */
-    size_t          n_states;     /* Worker states in STATES. */
-    size_t          dispatch_n;   /* Async IO requests to send at once. */
-    struct io_uring ring;         /* Submission ring buffer for liburing. */
+    wstate_t       *states;         /* N_STATES worker states. */
+    size_t          n_states;       /* Worker states in STATES. */
+    size_t          dispatch_n;     /* Async IO requests to send at once. */
+    struct io_uring ring;           /* Submission ring buffer for liburing. */
 } lstate_t;
 
 
