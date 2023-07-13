@@ -73,9 +73,9 @@ test_worker_loop(wstate_t *worker,
     long release_time = ((start.tv_nsec + start.tv_sec * 1e9) - (release_end.tv_nsec + release_end.tv_sec * 1e9));
 
     printf("Worker results --\n"
-           "\tRequest time:  %.09lu ns\n"
-           "\tRetrieve time: %.09lu ns (delta %.09lu ns)\n"
-           "\tRelease time:  %.09lu ns (delta %.09lu ns)\n",
+           "\tRequest time:  %ld ns\n"
+           "\tRetrieve time: %ld ns (delta %ld ns)\n"
+           "\tRelease time:  %ld ns (delta %ld ns)\n",
            request_time,
            retrieve_time, retrieve_time - request_time,
            release_time, release_time - retrieve_time);
