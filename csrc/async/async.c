@@ -225,7 +225,6 @@ async_reader_loop(void *arg)
         if ((e = fifo_pop(&st->ready, &st->ready_lock)) == NULL) {
             continue;
         }
-        printf("reader got entry from ready list; %s.\n", e->path);
 
         /* Issue the IO for this entry's filepath. */
         int status = async_perform_io(ld, e);
@@ -252,31 +251,18 @@ async_responder_loop(void *arg)
         /* Remove an entry from the completion queue. */
         int status = io_uring_wait_cqe(&ld->ring, &cqe);
         if (status < 0) {
-            printf("status = %d (%s).\n", status, strerror(-status));
+            fprintf(stderr, "io_uring_wait_cqe failed; %s.\n", strerror(-status));
             continue;
         } else if (cqe->res < 0) {
-            entry_t *e = (entry_t *) cqe->user_data;
-            printf("cqe->res = %d (%s) (fd = %d, path = %s).\n", cqe->res, strerror(-cqe->res), e->fd, e->path);
-
-            uint8_t *start = e->data;
-            uint8_t *end = e->data + e->max_size;
-
-            printf("start @ %p (value = %d), end @ %p (value = %d).\n", start, *start, end, *end);
-
-            *start = 123;
-            *end = 123;
-
-            printf("start @ %p (value = %d), end @ %p (value = %d).\n", start, *start, end, *end);
-            assert(false);
+            fprintf(stderr, "asynchronous read failed; %s.\n", strerror(-cqe->res));
+            continue;
         }
 
         /* Get the entry associated with the IO, and place it into the list for
            entries with completed IO. */
         entry_t *e = io_uring_cqe_get_data(cqe);
         io_uring_cqe_seen(&ld->ring, cqe);
-        printf("responder processing %s.\n", e->path);
         fifo_push(&e->worker->completed, &e->worker->completed_lock, e);
-        printf("responder done with %s.\n", e->path);
     }
 
     return NULL;
@@ -317,17 +303,6 @@ async_init(lstate_t *loader,
     size_t worker_size = sizeof(struct iovec) + queue_size + sizeof(wstate_t);
     size_t total_size = worker_size * n_workers + BLOCK_SIZE;
 
-    printf("entry_size  = %lu\n"
-           "queue_size  = %lu\n"
-           "iovec_size  = %lu\n"
-           "worker_size = %lu\n"
-           "total_size  = %lu\n",
-           entry_size,
-           queue_size,
-           sizeof(struct iovec),
-           worker_size,
-           total_size);
-
     /* Do the allocation. */
     if ((loader->states = mmap_alloc(total_size)) == NULL) {
         return -ENOMEM;
@@ -360,15 +335,6 @@ async_init(lstate_t *loader,
     /* Ensure that data is block-aligned. */
     data_start += BLOCK_SIZE - (((uint64_t) data_start) % BLOCK_SIZE);
     assert(((uint64_t) data_start) % BLOCK_SIZE == 0);
-
-    printf("states_start  = %p (size = %lu)\n"
-           "entries_start = %p (size = %lu) (offset = %lu)\n"
-           "iovec_start   = %p (size = %lu) (offset = %lu)\n"
-           "data_start    = %p (size = %lu) (offset = %lu)\n",
-           loader->states, state_bytes,
-           entry_start, entry_bytes, ((uint64_t) entry_start) - ((uint64_t) loader->states),
-           iovec_start, iovec_bytes, ((uint64_t) iovec_start) - ((uint64_t) entry_start),
-           data_start, data_bytes, ((uint64_t) (data_start) - ((uint64_t) iovec_start)));
 
     /* Assign all of the correct locations to each state/queue. */
     size_t entry_n = 0;

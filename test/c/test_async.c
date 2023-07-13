@@ -36,7 +36,8 @@ void
 test_worker_loop(wstate_t *worker,
                  uint64_t id,
                  char **filepaths,
-                 size_t n_filepaths)
+                 size_t n_filepaths,
+                 pthread_mutex_t *console_lock)
 {
     struct timespec start, request_end, retrieve_end, release_end;
     entry_t *entries[n_filepaths];
@@ -48,16 +49,11 @@ test_worker_loop(wstate_t *worker,
     }
     clock_gettime(CLOCK_REALTIME, &request_end);
 
-    printf("Submitted all requests.\n");
-
-
     /* Retrieve all files from loader. */
     for (size_t i = 0; i < n_filepaths; i++) {
         while ((entries[i] = async_try_get(worker)) == NULL) {}
     }
     clock_gettime(CLOCK_REALTIME, &retrieve_end);
-
-    printf("Retrieved all entries.\n");
 
     /* Release all entries. */
     for (size_t i = 0; i < n_filepaths; i++) {
@@ -65,21 +61,22 @@ test_worker_loop(wstate_t *worker,
     }
     clock_gettime(CLOCK_REALTIME, &release_end);
 
-    printf("Released all entries.\n");
-
 
     /* Log timing data. */
     long request_time = request_end.tv_nsec - start.tv_nsec + (request_end.tv_sec - start.tv_sec) * 1e9;
     long retrieve_time = retrieve_end.tv_nsec - start.tv_nsec + (retrieve_end.tv_sec - start.tv_sec) * 1e9;
     long release_time = release_end.tv_nsec - start.tv_nsec + (release_end.tv_sec - start.tv_sec) * 1e9;
 
-    printf("Worker results --\n"
+    pthread_mutex_lock(&console_lock);
+    printf("Worker %lu results --\n"
            "\t Request time: %ld ns\n"
            "\tRetrieve time: %ld ns (delta %ld ns)\n"
            "\t Release time: %ld ns (delta %ld ns)\n",
+           id,
            request_time,
            retrieve_time, retrieve_time - request_time,
            release_time, release_time - retrieve_time);
+    pthread_mutex_unlock(&console_lock);
 }
 
 
@@ -101,6 +98,10 @@ test_config(size_t queue_depth,
     atomic_size_t n_active_workers;
     atomic_store(&n_active_workers, n_workers);
 
+    /* Create lock for printing results to console. */
+    pthread_mutex_t console_lock;
+    pthread_mutex_init(&console_lock);
+
     /* Initialize the loader. */
     int status = async_init(loader, queue_depth, max_file_size, n_workers, min_dispatch_n);
     assert(status == 0);
@@ -113,12 +114,14 @@ test_config(size_t queue_depth,
         }
 
         /* Start child as a worker. */
-        test_worker_loop(&loader->states[i], i, filepaths + fp_per_worker * i, fp_per_worker);
+        test_worker_loop(&loader->states[i], i, filepaths + fp_per_worker * i, fp_per_worker, &console_lock);
 
         /* On worker termination, decrement number of active workers. If we were
            the last worker, kill the parent. */
         if (atomic_fetch_sub(&n_active_workers, 1) == 1) {
+            pthread_mutex_lock(&console_lock);
             printf("Final worker has completed; killing loader.\n");
+            pthread_mutex_unlock(&console_lock);
             kill(getppid(), SIGKILL);
 
             /* Return, so that further tests can occur. */
@@ -126,7 +129,9 @@ test_config(size_t queue_depth,
         }
 
         /* Once finished, exit. */
+        pthread_mutex_lock(&console_lock);
         printf("Worker %lu exiting.\n", i);
+        pthread_mutex_unlock(&console_lock);
         exit(EXIT_SUCCESS);
     }
 
