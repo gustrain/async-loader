@@ -30,7 +30,7 @@
 
 
 /* Generic worker process. */
-int
+void
 test_worker_loop(wstate_t *worker,
                  uint64_t id,
                  char **filepaths,
@@ -79,11 +79,11 @@ test_worker_loop(wstate_t *worker,
            retrieve_time, retrieve_time - request_time,
            release_time, release_time - retrieve_time);
     
-    return 0;
+    exit(EXIT_SUCCESS);
 }
 
 
-int
+void
 test_config(size_t queue_depth,
             size_t max_file_size,
             size_t n_workers,
@@ -115,15 +115,14 @@ test_config(size_t queue_depth,
             }
 
             /* Start child as a worker. */
-            return test_worker_loop(&loader->states[i], i, filepaths + fp_per_worker * i, fp_per_worker);
+            test_worker_loop(&loader->states[i], i, filepaths + fp_per_worker * i, fp_per_worker);
         }
 
         /* Start parent as a worker. */
-        return test_worker_loop(&loader->states[n_workers - 1], n_workers - 1, filepaths, n_filepaths);
+        test_worker_loop(&loader->states[n_workers - 1], n_workers - 1, filepaths, n_filepaths);
     } else {
         /* Parent. Start parent as loader.*/
         async_start(loader);
-        return 0;
     }
 }
 
