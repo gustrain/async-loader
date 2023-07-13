@@ -226,6 +226,15 @@ async_reader_loop(void *arg)
     while (true) {
         wstate_t *st = &ld->states[i++ % ld->n_states];
 
+        if (st->ready != NULL) {
+            entry_t *foo = st->ready;
+            int i = 0;
+            do {
+                printf("ready[%d] = %s.\n", i, foo->path);
+                foo = foo->next;
+            } while (foo != NULL && foo != st->ready);
+        }
+
         /* Take an item from the ready list. Racy check to avoid hogging lock. */
         if (st->ready != NULL && (e = fifo_pop(&st->ready, &st->ready_lock)) == NULL) {
             continue;
