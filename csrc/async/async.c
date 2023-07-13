@@ -38,6 +38,7 @@
 #include <liburing.h>
 #include <string.h>
 
+#define BLOCK_SIZE (4096)
 
 /* Insert ELEM into a doubly linked list, maintaining FIFO order. */
 static void
@@ -352,6 +353,7 @@ async_init(lstate_t *loader,
 
     /* Ensure that data is block-aligned. */
     data_start += ((uint64_t) data_start) % BLOCK_SIZE;
+    assert(((uint64_t) data_start) % BLOCK_SIZE == 0);
 
     printf("states_start  = %p (size = %lu)\n"
            "entries_start = %p (size = %lu) (offset = %lu)\n"
