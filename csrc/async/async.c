@@ -226,8 +226,8 @@ async_reader_loop(void *arg)
     while (true) {
         wstate_t *st = &ld->states[i++ % ld->n_states];
 
-        /* Take an item from the ready list. */
-        if ((e = fifo_pop(&st->ready, &st->ready_lock)) == NULL) {
+        /* Take an item from the ready list. Racy check to avoid hogging lock. */
+        if (st->ready != NULL && (e = fifo_pop(&st->ready, &st->ready_lock)) == NULL) {
             continue;
         }
         printf("reader got entry from ready list; %s.\n", e->path);
