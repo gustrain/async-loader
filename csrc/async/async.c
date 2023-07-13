@@ -56,7 +56,10 @@ fifo_insert(entry_t **head, pthread_spinlock_t *lock, entry_t *elem)
     /* Otherwise, insert into back of list. */
     elem->prev = (*head)->prev;
     elem->next = (*head);
-    (*head)->prev->next = elem;
+
+    if ((*head)->prev != NULL) {
+        (*head)->prev->next = elem;
+    }
     (*head)->prev = elem;
 
     pthread_spin_unlock(lock);
