@@ -247,12 +247,14 @@ async_responder_loop(void *arg)
 
     struct io_uring_cqe *cqe;
     while (true) {
+        /* Remove an entry from the completion queue. */
         int status = io_uring_wait_cqe(&ld->ring, &cqe);
         if (status < 0) {
             continue;
         } else if (cqe->res < 0) {
             continue;
         }
+        io_uring_cqe_seen(&ld->ring, cqe);
 
         /* Get the entry associated with the IO, and place it into the list for
            entries with completed IO. */
