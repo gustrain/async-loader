@@ -26,6 +26,7 @@
 #include <errno.h>
 #include <assert.h>
 #include <unistd.h>
+#include <signal.h>
 #include "../../csrc/utils/alloc.h"
 #include "../../csrc/async/async.h"
 
@@ -94,30 +95,37 @@ test_config(size_t queue_depth,
     lstate_t *loader = mmap_alloc(sizeof(lstate_t));
     assert(loader != NULL);
 
+    /* Create a tracker for active worker processes. */
+    atomic_size_t n_active_workers;
+    atomic_store(&n_active_workers, n_workers);
+
     /* Initialize the loader. */
     int status = async_init(loader, queue_depth, max_file_size, n_workers, min_dispatch_n);
     assert(status == 0);
 
     /* Fork, spawning loader process and worker processes. */
     size_t fp_per_worker = n_filepaths / n_workers;
-    if (fork() == 0) {
-        /* Child. Spawn N_WORKERS - 1 additional workers, since one exists. */
-        for (size_t i = 0; i < n_workers - 1; i++) {
-            if (fork() > 0) {
-                /* If we're the parent, loop and spawn another child. */
-                continue;
-            }
-
-            /* Start child as a worker. */
-            test_worker_loop(&loader->states[i], i, filepaths + fp_per_worker * i, fp_per_worker);
+    for (size_t i = 0; i < n_workers; i++) {
+        if (fork() > 0) {
+            continue;
         }
 
-        /* Start parent as a worker. */
-        test_worker_loop(&loader->states[n_workers - 1], n_workers - 1, filepaths, n_filepaths);
-    } else {
-        /* Parent. Start parent as loader.*/
-        async_start(loader);
+        /* Start child as a worker. */
+        test_worker_loop(&loader->states[i], i, filepaths + fp_per_worker * i, fp_per_worker);
+
+        /* On worker termination, decrement number of active workers. If we were
+           the last worker, kill the parent. */
+        if (atomic_fetch_sub(&n_active_workers, 1) == 0) {
+            print("Final worker has terminated; killing loader.\n");
+            kill(getppid(), 9);
+        }
+
+        /* Once finished, exit. */
+        exit(EXIT_SUCCESS);
     }
+
+    /* Parent becomes the loader once all workers have been created. */
+    async_start(loader);
 }
 
 int
