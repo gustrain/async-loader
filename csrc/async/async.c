@@ -182,6 +182,7 @@ async_perform_io(lstate_t *ld, entry_t *e)
     /* Get the file's size, check it's within bounds. */
     off_t size = file_get_size(e->fd);
     if (size < 0 || (size_t) size > e->max_size) {
+        close(e->fd);
         return -1;
     }
     e->size = (size_t) size;
@@ -314,10 +315,11 @@ async_init(lstate_t *loader,
     */
 
     /* Sizes of each region. */
+    size_t n_queue_entries = n_workers * queue_depth;
     size_t state_bytes = n_workers * sizeof(wstate_t);
-    size_t entry_bytes = n_workers * queue_depth * sizeof(entry_t);
-    size_t iovec_bytes = n_workers * queue_depth * (max_file_size / BLOCK_SIZE) * sizeof(struct iovec);
-    size_t data_bytes  = n_workers * queue_depth * max_file_size;
+    size_t entry_bytes = n_queue_entries * sizeof(entry_t);
+    size_t iovec_bytes = n_queue_entries * (max_file_size / BLOCK_SIZE) * sizeof(struct iovec);
+    size_t data_bytes  = n_queue_entries * max_file_size;
 
     /* Addresses of each region. */
     uint8_t *entry_start = (uint8_t *) loader->states + state_bytes;
@@ -391,9 +393,11 @@ async_init(lstate_t *loader,
        memory because while worker interact with the shared queues, the IO
        submissions (thus interactions with liburing) are done only by this
        reader/responder process. */
-    if (io_uring_queue_init(n_workers * queue_depth, &loader->ring, 0) != 0) {
+    int status = io_uring_queue_init(n_workers * queue_depth, &loader->ring, 0);
+    if (status < 0) {
+        fprintf(stderr, "io_uring_queue_init failed; %s\n", strerror(-status));
         mmap_free(loader->states, total_size);
-        return -errno;
+        return status;
     }
 
     return 0;
