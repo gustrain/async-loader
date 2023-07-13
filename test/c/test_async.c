@@ -117,7 +117,7 @@ test_config(size_t queue_depth,
            the last worker, kill the parent. */
         if (atomic_fetch_sub(&n_active_workers, 1) == 1) {
             printf("Final worker has completed; killing loader.\n");
-            kill(getppid(), 9);
+            kill(getppid(), SIGQUIT);
 
             /* Return, so that further tests can occur. */
             return;
