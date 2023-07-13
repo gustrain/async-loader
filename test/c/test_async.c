@@ -67,14 +67,14 @@ test_worker_loop(wstate_t *worker,
 
 
     /* Log timing data. */
-    long request_time = ((start.tv_nsec + start.tv_sec * 1e9) - (request_end.tv_nsec + request_end.tv_sec * 1e9)) / (1000 * 1000);
-    long retrieve_time = ((start.tv_nsec + start.tv_sec * 1e9) - (retrieve_end.tv_nsec + retrieve_end.tv_sec * 1e9)) / (1000 * 1000);
-    long release_time = ((start.tv_nsec + start.tv_sec * 1e9) - (release_end.tv_nsec + release_end.tv_sec * 1e9)) / (1000 * 1000);
+    long request_time = ((start.tv_nsec + start.tv_sec * 1e9) - (request_end.tv_nsec + request_end.tv_sec * 1e9));
+    long retrieve_time = ((start.tv_nsec + start.tv_sec * 1e9) - (retrieve_end.tv_nsec + retrieve_end.tv_sec * 1e9));
+    long release_time = ((start.tv_nsec + start.tv_sec * 1e9) - (release_end.tv_nsec + release_end.tv_sec * 1e9));
 
     printf("Worker results --\n"
-           "\tRequest time:  %.4lu ms\n"
-           "\tRetrieve time: %.4lu ms (delta %.4lu ms)\n"
-           "\tRelease time:  %.4lu ms (delta %.4lu ms)\n",
+           "\tRequest time:  %.09lu ns\n"
+           "\tRetrieve time: %.09lu ns (delta %.09lu ns)\n"
+           "\tRelease time:  %.09lu ns (delta %.09lu ns)\n",
            request_time,
            retrieve_time, retrieve_time - request_time,
            release_time, release_time - retrieve_time);
