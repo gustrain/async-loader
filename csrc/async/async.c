@@ -412,13 +412,11 @@ async_init(lstate_t *loader,
         state->free = state->queue;
         state->ready = NULL;
         state->completed = NULL;
-        state->served = NULL;
 
         /* Initialize the status list locks. */
         pthread_spin_init(&state->free_lock, PTHREAD_PROCESS_SHARED);
         pthread_spin_init(&state->ready_lock, PTHREAD_PROCESS_SHARED);
         pthread_spin_init(&state->completed_lock, PTHREAD_PROCESS_SHARED);
-        pthread_spin_init(&state->served_lock, PTHREAD_PROCESS_SHARED);
     }
 
     /* Set the loader's config states. */

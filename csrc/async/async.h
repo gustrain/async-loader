@@ -61,23 +61,22 @@ typedef struct worker_state {
     /* Status lists. Mutually exclusive, all using NEXT field of entry. Entries
        move exclusively in a loop, and are only ever present in at most 1 list.
 
-            free -> ready -> completed -> served -> free
+            free -> ready -> completed -> free
         
        Lists should be maintained in FIFO order, and must be looped so that the
        head's PREV field points to the tail of the list. When an entry has IO
        issued, it is removed from the ready list. It is only added to the
        completed list once that IO has completed. In the interim it is tracked
-       only by the uring buffer. */
+       only by the uring buffer. Similarly, once a worker reads an entry from
+       the completed list, it is only added to the free list upon release. */
     entry_t *free;          /* Unused queue entries. */
     entry_t *ready;         /* Queue entries ready to have IO issued. */
     entry_t *completed;     /* Queue entries with completed IO. */
-    entry_t *served;        /* Queue entries that have been read by a worker. */
 
     /* Synchronization. */
     pthread_spinlock_t free_lock;       /* Protects FREE. */
     pthread_spinlock_t ready_lock;      /* Protects READY. */
     pthread_spinlock_t completed_lock;  /* Protects COMPLETED. */
-    pthread_spinlock_t served_lock;     /* Protects SERVED. */
 } wstate_t;
 
 /* Loader (reader + responder) state. */
