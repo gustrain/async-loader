@@ -42,26 +42,28 @@ test_worker_loop(wstate_t *worker,
     /* Request all files to loader. */
     clock_gettime(CLOCK_REALTIME, &start);
     for (size_t i = 0; i < n_filepaths; i++) {
-        while (!async_try_request(worker, filepaths[i])) {
-            printf("read submission failed; retrying\n");
-        }
+        while (!async_try_request(worker, filepaths[i])) {}
     }
     clock_gettime(CLOCK_REALTIME, &request_end);
+
+    printf("Submitted all requests.\n");
 
 
     /* Retrieve all files from loader. */
     for (size_t i = 0; i < n_filepaths; i++) {
-        while ((entries[i] = async_try_get(worker)) == NULL) {
-            printf("retrieve failed; retrying\n");
-        }
+        while ((entries[i] = async_try_get(worker)) == NULL) {}
     }
     clock_gettime(CLOCK_REALTIME, &retrieve_end);
+
+    printf("Retrieved all entries.\n");
 
     /* Release all entries. */
     for (size_t i = 0; i < n_filepaths; i++) {
         async_release(entries[i]);
     }
     clock_gettime(CLOCK_REALTIME, &release_end);
+
+    printf("Released all entries.\n");
 
 
     /* Log timing data. */
