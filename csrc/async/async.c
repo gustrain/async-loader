@@ -222,14 +222,15 @@ async_reader_loop(void *arg)
 
         /* Take an item from the ready list. */
         if ((e = fifo_pop(&st->ready, &st->ready_lock)) == NULL) {
-            printf("ready list empty.\n");
             continue;
         }
-        printf("retrieved entry from ready list; %s.\n", e->path);
+        printf("reader got entry from ready list; %s.\n", e->path);
 
         /* Issue the IO for this entry's filepath. */
-        if (async_perform_io(ld, e) < 0) {
+        int status = async_perform_io(ld, e);
+        if (status < 0) {
             /* What to do on failure? */
+            fprintf(stderr, "reader failed to issue IO; %s; %s.\n", e->path, strerror(status));
             fifo_push(&st->ready, &st->ready_lock, e);
             continue;
         };
@@ -246,21 +247,17 @@ async_responder_loop(void *arg)
 
     struct io_uring_cqe *cqe;
     while (true) {
-        printf("calling io_uring_wait_cqe.\n");
         int status = io_uring_wait_cqe(&ld->ring, &cqe);
-        printf("io_uring_wait_cqe returned.\n");
         if (status < 0) {
-            fprintf(stderr, "io_uring_wait_cqe failed; (%d) %s\n", status, strerror(status));
             continue;
         } else if (cqe->res < 0) {
-            fprintf(stderr, "async read failed; (%d) %s\n", cqe->res, strerror(cqe->res));
             continue;
         }
-        printf("io_uyring_wait_cqe didn't fail.\n");
 
         /* Get the entry associated with the IO, and place it into the list for
            entries with completed IO. */
         entry_t *e = io_uring_cqe_get_data(cqe);
+        printf("responder processed %s.\n", e->path);
         fifo_push(&e->worker->completed, &e->worker->completed_lock, e);
     }
 
