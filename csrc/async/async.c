@@ -285,6 +285,17 @@ async_init(lstate_t *loader,
     size_t worker_size = iovec_size + queue_size + sizeof(wstate_t);
     size_t total_size = worker_size * n_workers;
 
+    printf("entry_size  = %lu\n"
+           "queue_size  = %lu\n"
+           "iovec_size  = %lu\n"
+           "worker_size = %lu\n"
+           "total_size  = %lu\n",
+           entry_size,
+           queue_size,
+           iovec_size,
+           worker_size,
+           total_size);
+
     /* Do the allocation. */
     if ((loader->states = mmap_alloc(total_size)) == NULL) {
         return -ENOMEM;
@@ -302,9 +313,25 @@ async_init(lstate_t *loader,
          └►n_workers * sizeof(wstate_t)
     */
 
-    entry_t *entries_start = (entry_t *) (loader->states + n_workers * sizeof(wstate_t));
-    struct iovec *iovec_start = (struct iovec *) (entries_start + n_workers * queue_depth * sizeof(entry_t));
-    uint8_t *data_start = (uint8_t *) (iovec_start + n_workers * queue_depth * (max_file_size / BLOCK_SIZE) * sizeof(struct iovec));
+    /* Sizes of each region. */
+    size_t state_bytes = n_workers * sizeof(wstate_t);
+    size_t entry_bytes = n_workers * queue_depth * sizeof(entry_t);
+    size_t iovec_bytes = n_workers * queue_depth * (max_file_size / BLOCK_SIZE) * sizeof(struct iovec);
+    size_t data_bytes  = n_workers * queue_depth * max_file_size;
+
+    /* Addresses of each region. */
+    uint8_t *entry_start = (uint8_t *) loader->states + state_bytes;
+    uint8_t *iovec_start = entry_start + entry_bytes;
+    uint8_t *data_start  = iovec_start + iovec_bytes;
+
+    printf("states_start  = %p (size = %lu)\n"
+           "entries_start = %p (size = %lu) (offset = %lu)\n"
+           "iovec_start   = %p (size = %lu) (offset = %lu)\n"
+           "data_start    = %p (size = %lu) (offset = %lu)\n",
+           loader->states, state_bytes,
+           entry_start, entry_bytes, ((uint64_t) entry_start) - ((uint64_t) loader->states),
+           iovec_start, iovec_bytes, ((uint64_t) iovec_start) - ((uint64_t) entry_start),
+           data_start, data_bytes, ((uint64_t) (data_start) - ((uint64_t) iovec_start)));
 
     /* Assign all of the correct locations to each state/queue. */
     size_t entry_n = 0;
@@ -314,13 +341,14 @@ async_init(lstate_t *loader,
         state->capacity = queue_depth;
 
         /* Assign memory for queues and file data. */
-        state->queue = &entries_start[entry_n];
+        state->queue = (entry_t *) (entry_start + entry_n * sizeof(entry_t));
         for (size_t j = 0; j < queue_depth; j++) {
             entry_t *e = &state->queue[j];
 
             e->data = data_start + (entry_n) * max_file_size;
             e->n_vecs = max_file_size / BLOCK_SIZE;
-            e->iovecs = iovec_start + entry_n * queue_depth * e->n_vecs * sizeof(struct iovec);
+            e->iovecs = (struct iovec *) (iovec_start + entry_n * queue_depth *
+                                          e->n_vecs * sizeof(struct iovec));
             for (size_t k = 0; k < e->n_vecs; k++) {
                 /* Assign each iovec contiguously in the entry's data region. */
                 e->iovecs[k].iov_base = e->data + k * BLOCK_SIZE;
