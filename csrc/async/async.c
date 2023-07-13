@@ -47,8 +47,8 @@ fifo_push(entry_t **head, pthread_spinlock_t *lock, entry_t *elem)
     pthread_spin_lock(lock);
     if (*head == NULL) {
         *head = elem;
-        elem->prev = NULL;
-        elem->next = NULL;
+        elem->prev = elem;
+        elem->next = elem;
         pthread_spin_unlock(lock);
         return;
     }
@@ -57,9 +57,8 @@ fifo_push(entry_t **head, pthread_spinlock_t *lock, entry_t *elem)
     elem->prev = (*head)->prev;
     elem->next = (*head)->next;
 
-    if ((*head)->prev != NULL) {
-        (*head)->prev->next = elem;
-    }
+    /* Place this element behind the current tail. */
+    (*head)->prev->next = elem;
     (*head)->prev = elem;
 
     pthread_spin_unlock(lock);
