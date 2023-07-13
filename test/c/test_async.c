@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
+#include <assert.h>
 #include <unistd.h>
 #include "../../csrc/utils/alloc.h"
 #include "../../csrc/async/async.h"
