@@ -78,8 +78,6 @@ test_worker_loop(wstate_t *worker,
            request_time,
            retrieve_time, retrieve_time - request_time,
            release_time, release_time - retrieve_time);
-    
-    exit(EXIT_SUCCESS);
 }
 
 
