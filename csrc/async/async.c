@@ -41,7 +41,7 @@
 
 /* Insert ELEM into a doubly linked list, maintaining FIFO order. */
 static void
-fifo_insert(entry_t **head, pthread_spinlock_t *lock, entry_t *elem)
+fifo_push(entry_t **head, pthread_spinlock_t *lock, entry_t *elem)
 {
     /* Handle case of empty list. */
     pthread_spin_lock(lock);
@@ -112,7 +112,7 @@ async_try_request(wstate_t *state, char *path)
 
     /* Configure the entry and move it into the ready list. */
     strncpy(e->path, path, MAX_PATH_LEN + 1);
-    fifo_insert(&state->ready, &state->ready_lock, e);
+    fifo_push(&state->ready, &state->ready_lock, e);
 
     printf("Inserted request for %s.\n", path);
 
@@ -143,7 +143,7 @@ async_release(entry_t *e)
     e->fd = -1;
 
     /* Insert into the free list. */
-    fifo_insert(&e->worker->free, &e->worker->free_lock, e);
+    fifo_push(&e->worker->free, &e->worker->free_lock, e);
 }
 
 
@@ -230,7 +230,7 @@ async_reader_loop(void *arg)
         /* Issue the IO for this entry's filepath. */
         if (async_perform_io(ld, e) < 0) {
             /* What to do on failure? */
-            fifo_insert(&st->ready, &st->ready_lock, e);
+            fifo_push(&st->ready, &st->ready_lock, e);
             continue;
         };
     }
@@ -261,7 +261,7 @@ async_responder_loop(void *arg)
         /* Get the entry associated with the IO, and place it into the list for
            entries with completed IO. */
         entry_t *e = io_uring_cqe_get_data(cqe);
-        fifo_insert(&e->worker->completed, &e->worker->completed_lock, e);
+        fifo_push(&e->worker->completed, &e->worker->completed_lock, e);
     }
 
     return NULL;
