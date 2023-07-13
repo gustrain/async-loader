@@ -30,9 +30,9 @@
 #define _GNU_SOURCE
 
 
-/* Allocate shared, page-locked memory, using an anonymous mmap. If this process
-   forks, and all "shared" state was allocated using this function, everything
-   will behave properly, as if we're synchronizing threads.
+/* Allocate shared memory using an anonymous mmap. If this process forks, and
+   all "shared" state was allocated using this function, everything will behave
+   properly, as if we're synchronizing threads.
    
    Returns a pointer to a SIZE-byte region of memory on success, and returns
    NULL on failure. */
@@ -41,19 +41,10 @@ mmap_alloc(size_t size)
 {
    /* Allocate SIZE bytes of page-aligned memory in an anonymous shared mmap. */
    assert(size > 0);
-   void *ptr = mmap(NULL, size,
-                    PROT_READ | PROT_WRITE,
-                    MAP_ANONYMOUS | MAP_SHARED | MAP_POPULATE,
-                    -1, 0);
-
-   /* Lock this region. */
-   if (mlock(ptr, size) != 0) {
-      /* Don't allow a double failure. */
-      assert(munmap(ptr, size) == 0);
-      return NULL;
-   }
-
-   return ptr;
+   return mmap(NULL, size,
+               PROT_READ | PROT_WRITE,
+               MAP_ANONYMOUS | MAP_SHARED | MAP_POPULATE,
+               -1, 0);
 }
 
 /* Free memory allocated with mmap_alloc. */

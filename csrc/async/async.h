@@ -26,9 +26,10 @@
 
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <pthread.h>
 #include <stdatomic.h>
-#include <linux/io_uring.h>
+#include <liburing.h>
 
 #define MAX_PATH_LEN (128)
 
@@ -86,5 +87,14 @@ typedef struct {
     size_t          dispatch_n;   /* Async IO requests to send at once. */
     struct io_uring ring;         /* Submission ring buffer for liburing. */
 } lstate_t;
+
+
+bool async_try_request(wstate_t *state, char *path);
+entry_t *async_try_get(wstate_t *state);
+void async_release(entry_t *e);
+
+void async_start(lstate_t *loader);
+int async_init(lstate_t *loader, size_t queue_depth, size_t max_file_size, size_t n_workers, size_t min_dispatch_n);
+
 
 #endif

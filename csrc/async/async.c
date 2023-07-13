@@ -40,7 +40,7 @@
 
 
 /* Insert ELEM into a doubly linked list, maintaining FIFO order. */
-void
+static void
 fifo_insert(entry_t **head, pthread_spinlock_t *lock, entry_t *elem)
 {
     /* Handle case of empty list. */
@@ -63,7 +63,7 @@ fifo_insert(entry_t **head, pthread_spinlock_t *lock, entry_t *elem)
 }
 
 /* Pop from a doubly linked list, maintaining FIFO order. */
-entry_t *
+static entry_t *
 fifo_pop(entry_t **head, pthread_spinlock_t *lock)
 {
     pthread_spin_lock(lock);
@@ -121,7 +121,7 @@ async_try_get(wstate_t *state)
 /* Marks an entry in the output queue as complete (reclaimable). Pending flag
    must be held for the entry when calling this function. */
 void
-async_release(wstate_t *state, entry_t *e)
+async_release(entry_t *e)
 {
     /* Close the file used. */
     close(e->fd);
@@ -132,7 +132,7 @@ async_release(wstate_t *state, entry_t *e)
     e->fd = -1;
 
     /* Insert into the free list. */
-    fifo_insert(&state->free, &state->free_lock, e);
+    fifo_insert(&e->worker->free, &e->worker->free_lock, e);
 }
 
 
@@ -187,10 +187,10 @@ async_perform_io(lstate_t *ld, entry_t *e)
     e->size = (size_t) size;
 
     /* Create and submit the uring AIO request. */
-    struct io_uring_seq *sqe = io_uring_get_seq(ld->ring);
+    struct io_uring_sqe *sqe = io_uring_get_sqe(&ld->ring);
     io_uring_prep_readv(sqe, e->fd, e->iovecs, e->n_vecs, 0);
     io_uring_sqe_set_data(sqe, e);  /* Associate request with this entry. */
-    io_uring_submit(ld->ring);
+    io_uring_submit(&ld->ring);
 
     return 0;
 }
