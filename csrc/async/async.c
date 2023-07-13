@@ -125,8 +125,14 @@ async_try_request(wstate_t *state, char *path)
 entry_t *
 async_try_get(wstate_t *state)
 {
-    /* Try to get an entry from the completed list. Return NULL if empty. */
-    return fifo_pop(&state->completed, &state->completed_lock);
+    /* Try to get an entry from the completed list. Return NULL if empty. This
+       read is racey, but the only goal is to prevent hogging the when the list
+       is empty. */
+    if (&state->completed != NULL) {
+        return fifo_pop(&state->completed, &state->completed_lock);
+    }
+    
+    return NULL;
 }
 
 /* Marks an entry in the output queue as complete (reclaimable). Pending flag
