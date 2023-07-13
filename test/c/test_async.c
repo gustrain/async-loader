@@ -116,7 +116,7 @@ test_config(size_t queue_depth,
         /* On worker termination, decrement number of active workers. If we were
            the last worker, kill the parent. */
         if (atomic_fetch_sub(&n_active_workers, 1) == 0) {
-            print("Final worker has terminated; killing loader.\n");
+            printf("Final worker has terminated; killing loader.\n");
             kill(getppid(), 9);
         }
 
