@@ -107,6 +107,8 @@ async_try_request(wstate_t *state, char *path)
     strncpy(e->path, path, MAX_PATH_LEN);
     fifo_insert(&state->ready, &state->ready_lock, e);
 
+    printf("Inserted request for %s.\n", path);
+
     return true;
 }
 
