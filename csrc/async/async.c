@@ -256,10 +256,10 @@ async_responder_loop(void *arg)
         /* Remove an entry from the completion queue. */
         int status = io_uring_wait_cqe(&ld->ring, &cqe);
         if (status < 0) {
-            printf("status = %d.\n", status);
+            printf("status = %d (%s).\n", status, strerror(status));
             continue;
         } else if (cqe->res < 0) {
-            printf("cqe->res = %d.\n", cqe->res);
+            printf("cqe->res = %d (%s).\n", cqe->res, sterror(cqe->res));
             continue;
         }
         io_uring_cqe_seen(&ld->ring, cqe);
