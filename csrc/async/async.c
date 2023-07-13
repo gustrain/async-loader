@@ -259,7 +259,7 @@ async_responder_loop(void *arg)
             printf("status = %d (%s).\n", status, strerror(status));
             continue;
         } else if (cqe->res < 0) {
-            printf("cqe->res = %d (%s).\n", cqe->res, strerror(cqe->res));
+            printf("cqe->res = %d (%s) (fd = %d).\n", cqe->res, strerror(cqe->res), ((entry_t *) cqe->user_data)->fd);
             continue;
         }
         io_uring_cqe_seen(&ld->ring, cqe);
