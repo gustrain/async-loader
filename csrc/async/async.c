@@ -259,8 +259,9 @@ async_responder_loop(void *arg)
         /* Get the entry associated with the IO, and place it into the list for
            entries with completed IO. */
         entry_t *e = io_uring_cqe_get_data(cqe);
-        printf("responder processed %s.\n", e->path);
+        printf("responder processing %s.\n", e->path);
         fifo_push(&e->worker->completed, &e->worker->completed_lock, e);
+        printf("responder done with %s.\n", e->path);
     }
 
     return NULL;
