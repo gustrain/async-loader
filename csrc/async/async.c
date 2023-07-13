@@ -271,7 +271,6 @@ async_responder_loop(void *arg)
             *end = 123;
 
             printf("start @ %p (value = %d), end @ %p (value = %d).\n", start, *start, end, *end);
-
             assert(false);
         }
 
@@ -318,8 +317,7 @@ async_init(lstate_t *loader,
     /* Figure out how much memory to allocate. */
     size_t entry_size = sizeof(entry_t) + max_file_size;
     size_t queue_size = entry_size * queue_depth;
-    size_t iovec_size = sizeof(struct iovec) * (max_file_size / BLOCK_SIZE);
-    size_t worker_size = iovec_size + queue_size + sizeof(wstate_t);
+    size_t worker_size = sizeof(struct iovec) + queue_size + sizeof(wstate_t);
     size_t total_size = worker_size * n_workers + BLOCK_SIZE;   /* + BLOCK_SIZE ensure sufficient memory after data alignment. */
 
     printf("entry_size  = %lu\n"
@@ -329,7 +327,7 @@ async_init(lstate_t *loader,
            "total_size  = %lu\n",
            entry_size,
            queue_size,
-           iovec_size,
+           sizeof(struct iovec),
            worker_size,
            total_size);
 
@@ -354,7 +352,7 @@ async_init(lstate_t *loader,
     size_t n_queue_entries = n_workers * queue_depth;
     size_t state_bytes = n_workers * sizeof(wstate_t);
     size_t entry_bytes = n_queue_entries * sizeof(entry_t);
-    size_t iovec_bytes = n_queue_entries * (max_file_size / BLOCK_SIZE) * sizeof(struct iovec);
+    size_t iovec_bytes = n_queue_entries * sizeof(struct iovec);
     size_t data_bytes  = n_queue_entries * max_file_size;
 
     /* Addresses of each region. */
@@ -391,16 +389,12 @@ async_init(lstate_t *loader,
             /* Data needs to be block (4k) aligned. */
             assert(max_file_size % BLOCK_SIZE == 0);
             e->data = data_start + entry_n * max_file_size;
-            e->n_vecs = max_file_size / BLOCK_SIZE;
+            e->n_vecs = 1;
             e->iovecs = (struct iovec *) (iovec_start + entry_n * queue_depth *
                                           e->n_vecs * sizeof(struct iovec));
-            for (size_t k = 0; k < e->n_vecs; k++) {
-                /* Assign each iovec contiguously in the entry's data region. */
-                e->iovecs[k].iov_base = e->data + k * BLOCK_SIZE;
-                e->iovecs[k].iov_len = BLOCK_SIZE;
-                assert(((uint64_t) e->iovecs[k].iov_base) % BLOCK_SIZE == 0);
-
-            }
+            e->iovecs[1].iov_base = e->data;
+            e->iovecs[1].iov_len = max_file_size;    
+            assert(((uint64_t) e->iovecs[1].iov_base) % BLOCK_SIZE == 0);
 
             /* Configure entry. */
             e->max_size = max_file_size;
