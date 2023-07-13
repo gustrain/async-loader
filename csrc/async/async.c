@@ -235,10 +235,10 @@ async_responder_loop(void *arg)
     while (true) {
         int status = io_uring_wait_cqe(&ld->ring, &cqe);
         if (status < 0) {
-            fprintf(stderr, "io_uring_wait_cqe failed; %s\n", strerror(status));
+            fprintf(stderr, "io_uring_wait_cqe failed; (%d) %s\n", status, strerror(status));
             continue;
         } else if (cqe->res < 0) {
-            fprintf(stderr, "async read failed; %s\n", strerror(cqe->res));
+            fprintf(stderr, "async read failed; (%d) %s\n", cqe->res, strerror(cqe->res));
             continue;
         }
 
