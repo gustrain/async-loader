@@ -38,7 +38,6 @@
 #include <liburing.h>
 #include <string.h>
 
-#define BLOCK_SIZE (4096)
 
 /* Insert ELEM into a doubly linked list, maintaining FIFO order. */
 static void
