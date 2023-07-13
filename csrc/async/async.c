@@ -159,7 +159,7 @@ async_release(entry_t *e)
 
 /* On success, returns the size of a file in bytes. On failure, returns negative
    ERRNO value. */
-off_t
+static off_t
 file_get_size(int fd)
 {
     struct stat st;
@@ -188,7 +188,7 @@ file_get_size(int fd)
    read into the buffer DATA. Saves the file descriptor to FD, and allows AIO to
    save number of bytes read to SIZE. On success, returns 0. On failure, returns
    negative ERRNO value. */
-int
+static int
 async_perform_io(lstate_t *ld, entry_t *e)
 {
     /* Open the file, get and check size. */
@@ -214,7 +214,7 @@ async_perform_io(lstate_t *ld, entry_t *e)
 }
 
 /* Loop for reader thread. */
-void *
+static void *
 async_reader_loop(void *arg)
 {
     lstate_t *ld = (lstate_t *) arg;
@@ -246,7 +246,7 @@ async_reader_loop(void *arg)
 }
 
 /* Loop for responder thread. */
-void *
+static void *
 async_responder_loop(void *arg)
 {
     lstate_t *ld = (lstate_t *) arg;
@@ -256,8 +256,10 @@ async_responder_loop(void *arg)
         /* Remove an entry from the completion queue. */
         int status = io_uring_wait_cqe(&ld->ring, &cqe);
         if (status < 0) {
+            printf("status = %d.\n", status);
             continue;
         } else if (cqe->res < 0) {
+            printf("cqe->res = %d.\n", cqe->res);
             continue;
         }
         io_uring_cqe_seen(&ld->ring, cqe);
