@@ -67,7 +67,7 @@ test_worker_loop(wstate_t *worker,
     long retrieve_time = retrieve_end.tv_nsec - start.tv_nsec + (retrieve_end.tv_sec - start.tv_sec) * 1e9;
     long release_time = release_end.tv_nsec - start.tv_nsec + (release_end.tv_sec - start.tv_sec) * 1e9;
 
-    pthread_mutex_lock(&console_lock);
+    pthread_mutex_lock(console_lock);
     printf("Worker %lu results --\n"
            "\t Request time: %ld ns\n"
            "\tRetrieve time: %ld ns (delta %ld ns)\n"
@@ -76,7 +76,7 @@ test_worker_loop(wstate_t *worker,
            request_time,
            retrieve_time, retrieve_time - request_time,
            release_time, release_time - retrieve_time);
-    pthread_mutex_unlock(&console_lock);
+    pthread_mutex_unlock(console_lock);
 }
 
 
