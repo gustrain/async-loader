@@ -236,7 +236,7 @@ async_reader_loop(void *arg)
         int status = async_perform_io(ld, e);
         if (status < 0) {
             /* What to do on failure? */
-            fprintf(stderr, "reader failed to issue IO; %s; %s.\n", e->path, strerror(status));
+            fprintf(stderr, "reader failed to issue IO; %s; %s.\n", e->path, strerror(-status));
             fifo_push(&st->ready, &st->ready_lock, e);
             continue;
         };
@@ -256,10 +256,10 @@ async_responder_loop(void *arg)
         /* Remove an entry from the completion queue. */
         int status = io_uring_wait_cqe(&ld->ring, &cqe);
         if (status < 0) {
-            printf("status = %d (%s).\n", status, strerror(status));
+            printf("status = %d (%s).\n", status, strerror(-status));
             continue;
         } else if (cqe->res < 0) {
-            printf("cqe->res = %d (%s) (fd = %d, path = %s).\n", cqe->res, strerror(cqe->res), ((entry_t *) cqe->user_data)->fd, ((entry_t *) cqe->user_data)->path);
+            printf("cqe->res = %d (%s) (fd = %d, path = %s).\n", cqe->res, strerror(-cqe->res), ((entry_t *) cqe->user_data)->fd, ((entry_t *) cqe->user_data)->path);
             continue;
         }
         io_uring_cqe_seen(&ld->ring, cqe);
