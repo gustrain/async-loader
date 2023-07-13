@@ -259,7 +259,19 @@ async_responder_loop(void *arg)
             printf("status = %d (%s).\n", status, strerror(-status));
             continue;
         } else if (cqe->res < 0) {
-            printf("cqe->res = %d (%s) (fd = %d, path = %s).\n", cqe->res, strerror(-cqe->res), ((entry_t *) cqe->user_data)->fd, ((entry_t *) cqe->user_data)->path);
+            entry_t *e = (entry_t *) cqe->user_data;
+            printf("cqe->res = %d (%s) (fd = %d, path = %s).\n", cqe->res, strerror(-cqe->res), e->fd, e->path);
+
+            uint8_t *start = e->data;
+            uint8_t *end = e->data + e->max_size;
+
+            printf("start @ %p (value = %d), end @ %p (value = %d).\n", start, *start, end, *end);
+
+            *start = 123;
+            *end = 123;
+
+            printf("start @ %p (value = %d), end @ %p (value = %d).\n", start, *start, end, *end);
+
             assert(false);
         }
 
