@@ -91,6 +91,8 @@ test_config(size_t queue_depth,
             char **filepaths,
             size_t n_filepaths)
 {
+    printf("Testing config with %lu worker(s).\n", n_workers);
+
     /* Create the loader. */
     lstate_t *loader = mmap_alloc(sizeof(lstate_t));
     assert(loader != NULL);
@@ -117,7 +119,7 @@ test_config(size_t queue_depth,
            the last worker, kill the parent. */
         if (atomic_fetch_sub(&n_active_workers, 1) == 1) {
             printf("Final worker has completed; killing loader.\n");
-            kill(getppid(), SIGQUIT);
+            kill(getppid(), SIGKILL);
 
             /* Return, so that further tests can occur. */
             return;
@@ -137,7 +139,6 @@ main(int argc, char **argv)
 {
     size_t queue_depth    = 32;
     size_t max_file_size  = 1024 * 1024;
-    size_t n_workers      = 1;
     size_t min_dispatch_n = queue_depth;
     size_t n_filepaths    = 4;
     char *filepaths[] = {
@@ -147,12 +148,19 @@ main(int argc, char **argv)
         "test_async.o",
     };
 
-    test_config(queue_depth,
-                max_file_size,
-                n_workers,
-                min_dispatch_n,
-                filepaths,
-                n_filepaths);
+    /* Worker configs to test. */
+    size_t n_workers[] = {1, 2};
+    size_t n_configs = 2;
+
+    /* Run each test configuration. */
+    for (size_t i = 0; i < n_configs; i++) {
+        test_config(queue_depth,
+                    max_file_size,
+                    n_workers[i],
+                    min_dispatch_n,
+                    filepaths,
+                    n_filepaths);
+    }
 
     printf("All tests complete.\n");
 
