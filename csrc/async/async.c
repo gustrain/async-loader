@@ -73,8 +73,12 @@ fifo_pop(entry_t **head, pthread_spinlock_t *lock)
         return NULL;
     }
 
-    (*head)->next->prev = (*head)->prev;
-    (*head)->prev->next = (*head)->next;
+    if ((*head)->next != NULL) {
+        (*head)->next->prev = (*head)->prev;
+    }
+    if ((*head)->prev != NULL) {
+        (*head)->prev->next = (*head)->next;
+    }
     *head = (*head)->next;
 
     /* Handle case of resulting list being empty. */
