@@ -68,7 +68,8 @@ test_worker_loop(wstate_t *worker,
     long release_time = release_end.tv_nsec - start.tv_nsec + (release_end.tv_sec - start.tv_sec) * 1e9;
 
     pthread_mutex_lock(console_lock);
-    printf("Worker %lu results --\n"
+    fprintf(stdout,
+           "Worker %lu results --\n"
            "\t Request time: %ld ns\n"
            "\tRetrieve time: %ld ns (delta %ld ns)\n"
            "\t Release time: %ld ns (delta %ld ns)\n",
@@ -76,6 +77,7 @@ test_worker_loop(wstate_t *worker,
            request_time,
            retrieve_time, retrieve_time - request_time,
            release_time, release_time - retrieve_time);
+    fflush(stdout);
     pthread_mutex_unlock(console_lock);
 }
 
@@ -124,6 +126,7 @@ test_config(size_t queue_depth,
         if (atomic_fetch_sub(&n_active_workers, 1) == 1) {
             pthread_mutex_lock(&console_lock);
             printf("Final worker has completed; killing loader.\n");
+            fflush(stdout);
             pthread_mutex_unlock(&console_lock);
             kill(getppid(), SIGKILL);
 
@@ -134,6 +137,7 @@ test_config(size_t queue_depth,
         /* Once finished, exit. */
         pthread_mutex_lock(&console_lock);
         printf("Worker %lu exiting.\n", i);
+        fflush(stdout);
         pthread_mutex_unlock(&console_lock);
         exit(EXIT_SUCCESS);
     }
