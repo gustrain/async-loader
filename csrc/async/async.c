@@ -314,11 +314,12 @@ async_init(lstate_t *loader,
            size_t n_workers,
            size_t min_dispatch_n)
 {
-    /* Figure out how much memory to allocate. */
+    /* Figure out how much memory to allocate. Allocate an extra BLOCK_SIZE
+       bytes so that we have sufficient memory even after data alignment. */
     size_t entry_size = sizeof(entry_t) + max_file_size;
     size_t queue_size = entry_size * queue_depth;
     size_t worker_size = sizeof(struct iovec) + queue_size + sizeof(wstate_t);
-    size_t total_size = worker_size * n_workers + BLOCK_SIZE;   /* + BLOCK_SIZE ensure sufficient memory after data alignment. */
+    size_t total_size = worker_size * n_workers + BLOCK_SIZE;
 
     printf("entry_size  = %lu\n"
            "queue_size  = %lu\n"
@@ -343,7 +344,7 @@ async_init(lstate_t *loader,
         └┬───────┴┬──────┴┬──────┴┬────────────┘
          │        │       │       │
          │        │       │       └►n_workers * queue_depth * max_file_size
-         │        │       └►n_workers * queue_depth * (max_file_size / BLOCK_SIZE) * sizeof(struct iovec)
+         │        │       └►n_workers * queue_depth * sizeof(struct iovec)
          │        └►n_workers * queue_depth * sizeof(entry_t)
          └►n_workers * sizeof(wstate_t)
     */
@@ -387,14 +388,15 @@ async_init(lstate_t *loader,
 
 
             /* Data needs to be block (4k) aligned. */
-            assert(max_file_size % BLOCK_SIZE == 0);
             e->data = data_start + entry_n * max_file_size;
+            assert(((uint64_t) e->data) % BLOCK_SIZE == 0);
+
+            /* Configure the iovec for asynchronous readv. */
             e->n_vecs = 1;
             e->iovecs = (struct iovec *) (iovec_start + entry_n * queue_depth *
                                           e->n_vecs * sizeof(struct iovec));
             e->iovecs[1].iov_base = e->data;
-            e->iovecs[1].iov_len = max_file_size;    
-            assert(((uint64_t) e->iovecs[1].iov_base) % BLOCK_SIZE == 0);
+            e->iovecs[1].iov_len = max_file_size;
 
             /* Configure entry. */
             e->max_size = max_file_size;
