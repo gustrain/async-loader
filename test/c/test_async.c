@@ -74,9 +74,9 @@ test_worker_loop(wstate_t *worker,
     long release_time = release_end.tv_nsec - start.tv_nsec + (release_end.tv_sec - start.tv_sec) * 1e9;
 
     printf("Worker results --\n"
-           "\tRequest time:  %ld ns\n"
+           "\t Request time: %ld ns\n"
            "\tRetrieve time: %ld ns (delta %ld ns)\n"
-           "\tRelease time:  %ld ns (delta %ld ns)\n",
+           "\t Release time: %ld ns (delta %ld ns)\n",
            request_time,
            retrieve_time, retrieve_time - request_time,
            release_time, release_time - retrieve_time);
@@ -116,11 +116,12 @@ test_config(size_t queue_depth,
         /* On worker termination, decrement number of active workers. If we were
            the last worker, kill the parent. */
         if (atomic_fetch_sub(&n_active_workers, 1) == 0) {
-            printf("Final worker has terminated; killing loader.\n");
+            printf("Final worker has completed; killing loader.\n");
             kill(getppid(), 9);
         }
 
         /* Once finished, exit. */
+        printf("Worker %lu exiting.\n", i);
         exit(EXIT_SUCCESS);
     }
 
