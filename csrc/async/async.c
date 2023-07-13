@@ -55,7 +55,7 @@ fifo_push(entry_t **head, pthread_spinlock_t *lock, entry_t *elem)
 
     /* Otherwise, insert into back of list. */
     elem->prev = (*head)->prev;
-    elem->next = (*head);
+    elem->next = (*head)->next;
 
     if ((*head)->prev != NULL) {
         (*head)->prev->next = elem;
