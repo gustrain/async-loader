@@ -260,13 +260,13 @@ async_responder_loop(void *arg)
             continue;
         } else if (cqe->res < 0) {
             printf("cqe->res = %d (%s) (fd = %d, path = %s).\n", cqe->res, strerror(-cqe->res), ((entry_t *) cqe->user_data)->fd, ((entry_t *) cqe->user_data)->path);
-            continue;
+            assert(false);
         }
-        io_uring_cqe_seen(&ld->ring, cqe);
 
         /* Get the entry associated with the IO, and place it into the list for
            entries with completed IO. */
         entry_t *e = io_uring_cqe_get_data(cqe);
+        io_uring_cqe_seen(&ld->ring, cqe);
         printf("responder processing %s.\n", e->path);
         fifo_push(&e->worker->completed, &e->worker->completed_lock, e);
         printf("responder done with %s.\n", e->path);
