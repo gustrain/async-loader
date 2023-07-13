@@ -100,7 +100,7 @@ test_config(size_t queue_depth,
 
     /* Create lock for printing results to console. */
     pthread_mutex_t console_lock;
-    pthread_mutex_init(&console_lock);
+    pthread_mutex_init(&console_lock, PTHREAD_PROCESS_SHARED);
 
     /* Initialize the loader. */
     int status = async_init(loader, queue_depth, max_file_size, n_workers, min_dispatch_n);
