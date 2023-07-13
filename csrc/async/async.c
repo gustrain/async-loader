@@ -98,8 +98,10 @@ async_try_request(wstate_t *state, char *path)
     /* Get a free entry. Return false if none available. */
     entry_t *e = fifo_pop(&state->free, &state->free_lock);
     if (e == NULL) {
+        printf("No free entries.\n");
         return false;
     }
+    printf("Got free entry. Inserting request for %s.\n", path);
 
     /* Configure the entry and move it into the ready list. */
     strncpy(e->path, path, MAX_PATH_LEN);
@@ -211,8 +213,10 @@ async_reader_loop(void *arg)
 
         /* Take an item from the ready list. */
         if ((e = fifo_pop(&st->ready, &st->ready_lock)) == NULL) {
+            printf("ready list empty.\n");
             continue;
         }
+        printf("retrieved entry from ready list; %s.\n", e->path);
 
         /* Issue the IO for this entry's filepath. */
         if (async_perform_io(ld, e) < 0) {
@@ -234,6 +238,7 @@ async_responder_loop(void *arg)
     struct io_uring_cqe *cqe;
     while (true) {
         int status = io_uring_wait_cqe(&ld->ring, &cqe);
+        printf("io_uring_wait_cqe returned.\n");
         if (status < 0) {
             fprintf(stderr, "io_uring_wait_cqe failed; (%d) %s\n", status, strerror(status));
             continue;
@@ -241,6 +246,7 @@ async_responder_loop(void *arg)
             fprintf(stderr, "async read failed; (%d) %s\n", cqe->res, strerror(cqe->res));
             continue;
         }
+        printf("io_uyring_wait_cqe didn't fail.\n");
 
         /* Get the entry associated with the IO, and place it into the list for
            entries with completed IO. */
