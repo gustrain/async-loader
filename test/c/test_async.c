@@ -91,16 +91,11 @@ test_config(size_t queue_depth,
 {
     /* Create the loader. */
     lstate_t *loader = mmap_alloc(sizeof(lstate_t));
-    if (loader == NULL) {
-        return -ENOMEM;
-    }
+    assert(loader != NULL);
 
     /* Initialize the loader. */
-    int status =  async_init(loader, queue_depth, max_file_size, n_workers, min_dispatch_n);
-    if (status != 0) {
-        return status;
-    }
-
+    int status = async_init(loader, queue_depth, max_file_size, n_workers, min_dispatch_n);
+    assert(status == 0);
 
     /* Fork, spawning loader process and worker processes. */
     size_t fp_per_worker = n_filepaths / n_workers;
