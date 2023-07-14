@@ -34,10 +34,9 @@
       return return_fail;                                                      \
    }
 
-
-/* ---------------- */
-/*   LOADER ENTRY   */
-/* ---------------- */
+/* --------- */
+/*   TYPES   */
+/* --------- */
 
 /* Python wrapper for entry_t struct. */
 typedef struct {
@@ -45,6 +44,25 @@ typedef struct {
 
    entry_t *entry;
 } Entry;
+
+/* Python wrapper for wstate_t struct. */
+typedef struct {
+   PyObject_HEAD
+
+   wstate_t *worker;
+} Worker;
+
+/* Python wrapper for lstate_t struct. */
+typedef struct {
+   PyObject_HEAD
+
+   lstate_t *loader;    /* Asynchronous loader state. */
+} Loader;
+
+
+/* ------------------------ */
+/*   LOADER ENTRY METHODS   */
+/* ------------------------ */
 
 /* Entry deallocate method. */
 static void
@@ -57,7 +75,7 @@ Entry_dealloc(PyObject *self)
 static PyObject *
 Entry_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
-   Entry *entry;
+   PyObject *entry;
    if ((entry = type->tp_alloc(type, 0)) == NULL) {
       PyErr_NoMemory();
       return NULL;
@@ -66,7 +84,7 @@ Entry_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
    return (PyObject *) entry;
 }
 
-/* Entry initialization mmethod. */
+/* Entry initialization method. */
 static int
 Entry_init(PyObject *self, PyObject *args, PyObject *kwds)
 {
@@ -118,13 +136,6 @@ static PyTypeObject PythonEntryType = {
 /*   WORKER CONTEXT   */
 /* ------------------ */
 
-/* Python wrapper for wstate_t struct. */
-typedef struct {
-   PyObject_HEAD
-
-   wstate_t *worker;
-} Worker;
-
 /* Worker deallocate method. */
 static void
 Worker_dealloc(PyObject *self)
@@ -136,7 +147,7 @@ Worker_dealloc(PyObject *self)
 static PyObject *
 Worker_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
-   Worker *worker;
+   PyObject *worker;
    if ((worker = type->tp_alloc(type, 0)) == NULL) {
       PyErr_NoMemory();
       return NULL;
@@ -185,7 +196,7 @@ Worker_try_get(Worker *self, PyObject *args, PyObject *kwds)
    }
 
    /* Allocate a wrapper. */
-   Entry *entry = Entry_new(&PythonEntryType, NULL, NULL);
+   Entry *entry = (Entry *) Entry_new(&PythonEntryType, NULL, NULL);
    if (entry == NULL) {
       return NULL;
    }
@@ -203,12 +214,12 @@ Worker_wait_get(Worker *self, PyObject *args, PyObject *kwds)
 {
    /* Spin until we get an entry. */
    Entry *entry;
-   while ((entry = Worker_try_get(self, NULL, NULL)) == Py_None) {}
+   while ((entry = (Entry *) Worker_try_get(self, NULL, NULL)) == (Entry *) Py_None) {}
    if (entry == NULL) {
       return NULL;
    }
 
-   return entry;
+   return (PyObject *) entry;
 }
 
 /* Worker methods array. */
@@ -240,13 +251,6 @@ static PyTypeObject PythonWorkerType = {
 /*   LOADER PROCESS   */
 /* ------------------ */
 
-/* Python wrapper for lstate_t struct. */
-typedef struct {
-   PyObject_HEAD
-
-   lstate_t *loader;    /* Asynchronous loader state. */
-} Loader;
-
 /* Loader deallocate method. */
 static void
 Loader_dealloc(PyObject *self)
@@ -276,8 +280,8 @@ static PyObject *
 Loader_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
    /* Allocate the Loader struct. */
-   Loader *self;
-   if ((self = (Loader *) type->tp_alloc(type, 0)) == NULL) {
+   PyObject *self;
+   if ((self = type->tp_alloc(type, 0)) == NULL) {
       PyErr_NoMemory();
       return NULL;
    }
@@ -323,7 +327,9 @@ Loader_init(PyObject *self, PyObject *args, PyObject *kwds)
                            n_workers,
                            min_dispatch_n);
    if (status < 0) {
-      PyErr_Format("failed to initialize loader; %s", strerr(-status));
+      PyErr_Format(PyExc_Exception,
+                   "failed to initialize loader; %s",
+                   strerror(-status));
       return -1;
    }
 
@@ -372,7 +378,7 @@ Loader_get_worker_context(Loader *self, PyObject *args, PyObject *kwds)
 
    /* Allocate a wrapper. */
    Worker *worker;
-   if ((worker = Worker_new(&PythonWorkerType, NULL, NULL)) == NULL) {
+   if ((worker = (Worker *) Worker_new(&PythonWorkerType, NULL, NULL)) == NULL) {
       return NULL;
    }
 
@@ -424,7 +430,7 @@ static struct PyModuleDef asyncloadermodule = {
 };
 
 /* Register a Python type with a module. */
-#define REGISTER_TYPE(module, type_addr, name)                                 \
+#define REGISTER_TYPE(module, name, type_addr)                                 \
    Py_INCREF(type_addr);                                                       \
    if (PyModule_AddObject(module, name, (PyObject *) type_addr) < 0) {         \
       Py_DECREF(type_addr);                                                    \
