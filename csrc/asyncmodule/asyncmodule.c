@@ -74,21 +74,20 @@ Entry_init(PyObject *self, PyObject *args, PyObject *kwds)
    return 0;
 }
 
-/* TODO.
-
-   Release an entry. Causes the */
+/* Release an entry. Causes the */
 static PyObject *
 Worker_release(Worker *self, PyObject *args, PyObject *kwds)
 {
    Entry *entry = (Entry *) self;
 
+   /* Release the wrapped entry, unless it's NULL. */
    if (entry->entry == NULL) {
       PyErr_SetString(PyExc_Exception, "cannot release entry; empty wrapper");
       return NULL;
    }
    async_release(entry->entry);
 
-   return NULL;
+   return Py_None;
 }
 
 /* Entry methods array. */
@@ -152,40 +151,62 @@ Worker_init(PyObject *self, PyObject *args, PyObject *kwds)
    return 0;
 }
 
-/* TODO.
-
-   Worker method to request a file be loaded. */
+/* Worker method to request a file be loaded. On success, returns True. On
+   failure, returns False. */
 static PyObject *
 Worker_request(Worker *self, PyObject *args, PyObject *kwds)
 {
-   /* TODO. */
+   char *filepath;
+   static char *kwlist[] = {"filepath", NULL};
+   if (!PyArg_ParseTupleAndKeywords(args, kwds, "s", kwlist, &filepath)) {
+      PyErr_SetString(PyExc_Exception, "missing/invalid argument");
+      return NULL;
+   }
 
-   return NULL;
+   if (!async_try_request(self->worker, filepath)) {
+      return PyBool_FromLong(false);
+   }
+
+   return PyBool_FromLong(true);
 }
 
-/* TODO.
-
-   Worker method to try to get a file. If a file is waiting in the completion
-   queue, that file is returned and popped from the queue. Otherwise, NULL is
+/* Worker method to try to get a file. If a file is waiting in the completion
+   queue, that file is returned and popped from the queue. Otherwise, None is
    returned. */
 static PyObject *
 Worker_try_get(Worker *self, PyObject *args, PyObject *kwds)
 {
-   /* TODO. */
+   /* Get an entry from the completion queue. */
+   entry_t *e = async_try_get(self->worker);
+   if (e == NULL) {
+      return Py_None;
+   }
 
-   return NULL;
+   /* Allocate a wrapper. */
+   Entry *entry = Entry_new(&PythonEntryType, NULL, NULL);
+   if (entry == NULL) {
+      return NULL;
+   }
+
+   /* Insert the entry_t into the wrapper. */
+   entry->entry = e;
+
+   return (PyObject *) entry;
 }
 
-/* TODO.
-
-   Worker method to block until a file is loaded. Removes the file from the
+/* Worker method to block until a file is loaded. Removes the file from the
    completion queue, and returns it. */
 static PyObject *
 Worker_wait_get(Worker *self, PyObject *args, PyObject *kwds)
 {
-   /* TODO. */
+   /* Spin until we get an entry. */
+   Entry *entry;
+   while ((entry = Worker_try_get(self, NULL, NULL)) == Py_None) {}
+   if (entry == NULL) {
+      return NULL;
+   }
 
-   return NULL;
+   return entry;
 }
 
 /* Worker methods array. */
@@ -268,7 +289,7 @@ Loader_init(PyObject *self, PyObject *args, PyObject *kwds)
    /* Parse arguments. */
    size_t queue_depth, max_file_size, n_workers, min_dispatch_n;
    static char *kwlist[] = {
-      "queue_depth", "max_file_size", "n_workers", "min_dispatch_n"
+      "queue_depth", "max_file_size", "n_workers", "min_dispatch_n", NULL
    };
    if (!PyArg_ParseTupleAndKeywords(args, kwds, "kkkk", kwlist,
                                     &queue_depth,
@@ -304,37 +325,56 @@ Loader_init(PyObject *self, PyObject *args, PyObject *kwds)
    return 0;
 }
 
-/* TODO.
-   
-   Loader method to become a loader process. */
+/* Loader method to become a loader process. */
 static PyObject *
 Loader_become_loader(Loader *self, PyObject *args, PyObject *kwds)
 {
-   /* TODO. */
+   /* Start the loader. */
+   async_start(self->loader);
 
-   return NULL;
+   return Py_None;
 }
 
-/* TODO.
-   
-   Loader method to spawn a loader process. */
+/* Loader method to spawn a loader process. */
 static PyObject *
 Loader_spawn_loader(Loader *self, PyObject *args, PyObject *kwds)
 {
-   /* TODO. */
+   /* Fork. Child starts the loader. */
+   if (fork() == 0) {
+      async_start(self->loader);
 
-   return NULL;
+      /* Never reached. */
+      assert(false);
+   }
+
+   return Py_None;
 }
 
-/* TODO.
-
-   Loader method to get the context (wstate_t) for a worker. */
+/* Loader method to get the context for the worker with the given ID. */
 static PyObject *
 Loader_get_worker_context(Loader *self, PyObject *args, PyObject *kwds)
 {
-   /* TODO. */
+   /* Parse the arguments. */
+   size_t id;
+   static char *kwlist[] = {"id", NULL};
+   if (!PyArg_ParseTupleAndKeywords(args, kwds, "k", kwlist, &id)) {
+      PyErr_SetString(PyExc_Exception, "missing/invalid argument");
+      return NULL;
+   }
 
-   return NULL;
+   /* Sanity-check the arguments. */
+   ARG_CHECK(id < self->loader->n_states, "invalid worker id", NULL);
+
+   /* Allocate a wrapper. */
+   Worker *worker;
+   if ((worker = Worker_new(&PythonWorkerType, NULL, NULL)) == NULL) {
+      return NULL;
+   }
+
+   /* Fill the wrapper. */
+   worker->worker = &self->loader->states[id];
+
+   return (PyObject *) worker;
 }
 
 /* Loader methods array. */
