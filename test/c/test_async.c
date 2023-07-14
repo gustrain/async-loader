@@ -86,7 +86,7 @@ test_config(size_t queue_depth,
             char **filepaths,
             size_t n_filepaths)
 {
-    printf("Testing config with %lu worker(s).\n", n_workers);
+    printf("\n-- Testing config with %lu worker(s) --\n", n_workers);
 
     /* Create the loader. */
     lstate_t *loader = mmap_alloc(sizeof(lstate_t));
