@@ -345,7 +345,7 @@ async_init(lstate_t *loader,
             entry_t *e = &state->queue[j];
 
 
-            /* Data needs to be block (4k) aligned. */
+            /* Data needs to be block-aligned. */
             e->data = data_start + entry_n * max_file_size;
             assert(((uint64_t) e->data) % BLOCK_SIZE == 0);
 
@@ -384,6 +384,7 @@ async_init(lstate_t *loader,
     /* Set the loader's config states. */
     loader->n_states = n_workers;
     loader->dispatch_n = min_dispatch_n;
+    loader->total_size = total_size;
 
     /* Initialize liburing. We don't need to worry about this not using shared
        memory because while worker interact with the shared queues, the IO

@@ -84,6 +84,7 @@ typedef struct {
     wstate_t       *states;         /* N_STATES worker states. */
     size_t          n_states;       /* Worker states in STATES. */
     size_t          dispatch_n;     /* Async IO requests to send at once. */
+    size_t          total_size;     /* Total memory allocated. For clean up. */
     struct io_uring ring;           /* Submission ring buffer for liburing. */
 } lstate_t;
 
