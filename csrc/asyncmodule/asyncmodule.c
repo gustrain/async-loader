@@ -27,8 +27,6 @@
 #include "../async/async.h"
 #include "../utils/alloc.h"
 
-#define MAX_ERR_LEN (256)
-
 /* Input validation. */
 #define ARG_CHECK(valid_condition, error_string, return_fail)                  \
    if (!(valid_condition)) {                                                   \
@@ -41,55 +39,54 @@
 /*   LOADER ENTRY   */
 /* ---------------- */
 
-/* TODO.
-   
-   Python wrapper for entry_t struct. */
+/* Python wrapper for entry_t struct. */
 typedef struct {
    PyObject_HEAD
 
    entry_t *entry;
 } Entry;
 
-/* TODO.
-   
-   Entry deallocate method. */
+/* Entry deallocate method. */
 static void
 Entry_dealloc(PyObject *self)
 {
-   /* TODO. */
-
-   return;
+   Py_TYPE(self)->tp_free(self);
 }
 
-/* TODO.
-   
-   Entry allocation method. */
+/* Entry allocation method. */
 static PyObject *
 Entry_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
-   /* TODO. */
+   Entry *entry;
+   if ((entry = type->tp_alloc(type, 0)) == NULL) {
+      PyErr_NoMemory();
+      return NULL;
+   }
 
-   return NULL;
+   return (PyObject *) entry;
 }
 
-/* TODO.
-   
-   Entry initialization mmethod. */
+/* Entry initialization mmethod. */
 static int
 Entry_init(PyObject *self, PyObject *args, PyObject *kwds)
 {
-   /* TODO. */
-
-   return -1;
+   /* No-op. */
+   return 0;
 }
 
 /* TODO.
 
    Release an entry. Causes the */
 static PyObject *
-Worker_wait_get(Worker *self, PyObject *args, PyObject *kwds)
+Worker_release(Worker *self, PyObject *args, PyObject *kwds)
 {
-   /* TODO. */
+   Entry *entry = (Entry *) self;
+
+   if (entry->entry == NULL) {
+      PyErr_SetString(PyExc_Exception, "cannot release entry; empty wrapper");
+      return NULL;
+   }
+   async_release(entry->entry);
 
    return NULL;
 }
@@ -131,27 +128,28 @@ typedef struct {
 static void
 Worker_dealloc(PyObject *self)
 {
-   /* TODO. */
-
-   return;
+   Py_TYPE(self)->tp_free(self);
 }
 
 /* Worker allocation method. */
 static PyObject *
 Worker_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
-   /* TODO. */
+   Worker *worker;
+   if ((worker = type->tp_alloc(type, 0)) == NULL) {
+      PyErr_NoMemory();
+      return NULL;
+   }
 
-   return NULL;
+   return (PyObject *) worker;
 }
 
 /* Worker initialization mmethod. */
 static int
 Worker_init(PyObject *self, PyObject *args, PyObject *kwds)
 {
-   /* TODO. */
-
-   return -1;
+   /* No-op. */
+   return 0;
 }
 
 /* TODO.
@@ -221,7 +219,6 @@ typedef struct {
    PyObject_HEAD
 
    lstate_t *loader;    /* Asynchronous loader state. */
-
 } Loader;
 
 /* Loader deallocate method. */
@@ -300,13 +297,7 @@ Loader_init(PyObject *self, PyObject *args, PyObject *kwds)
                            n_workers,
                            min_dispatch_n);
    if (status < 0) {
-      char error_string[MAX_ERR_LEN];
-      snprintf(error_string,
-               MAX_ERR_LEN,
-               "failed to initialize loader; %s",
-               strerror(-status));
-
-      PyErr_SetString(PyExc_Exception, error_string);
+      PyErr_Format("failed to initialize loader; %s", strerr(-status));
       return -1;
    }
 
