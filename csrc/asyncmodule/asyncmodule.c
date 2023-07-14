@@ -27,6 +27,15 @@
 #include "../async/async.h"
 #include "../utils/alloc.h"
 
+#define MAX_ERR_LEN (256)
+
+/* Input validation. */
+#define ARG_CHECK(valid_condition, error_string, return_fail)                  \
+   if (!(valid_condition)) {                                                   \
+      PyErr_SetString(PyExc_Exception, error_string);                          \
+      return return_fail;                                                      \
+   }
+
 /* Python wrapper for lstate_t type. */
 typedef struct {
    PyObject_HEAD
@@ -80,16 +89,46 @@ PyLoader_init(PyObject *self, PyObject *args, PyObject *kwds)
    PyLoader *loader = (PyLoader *) self;
 
    /* Parse arguments. */
-
+   size_t queue_depth, max_file_size, n_workers, min_dispatch_n;
+   static char *kwlist[] = {
+      "queue_depth", "max_file_size", "n_workers", "min_dispatch_n"
+   };
+   if (!PyArg_ParseTupleAndKeywords(args, kwds, "kkkk", kwlist,
+                                    &queue_depth,
+                                    &max_file_size,
+                                    &n_workers,
+                                    &min_dispatch_n)) {
+      PyErr_SetString(PyExc_Exception, "missing/invalid argument");
+      return -1;
+   }
 
    /* Sanity-check arguments. */
-
+   ARG_CHECK(queue_depth > 0, "queue depth must be positive", -1);
+   ARG_CHECK(max_file_size > 0, "max file size must be positive", -1);
+   ARG_CHECK(n_workers > 0, "must have >=1 worker(s)", -1);
 
    /* Allocate lstate using shared memory. */
-
+   if ((loader->loader = mmap_alloc(sizeof(lstate_t))) == NULL) {
+      PyErr_SetString(PyExc_Exception, "failed to allocate loader struct");
+      return -1;
+   }
 
    /* Initialize the loader. */
+   int status = async_init(loader->loader,
+                           queue_depth,
+                           max_file_size,
+                           n_workers,
+                           min_dispatch_n);
+   if (status < 0) {
+      char error_string[MAX_ERR_LEN];
+      snprintf(error_string,
+               MAX_ERR_LEN,
+               "failed to initialize loader; %s",
+               strerror(-status));
 
+      PyErr_SetString(PyExc_Exception, error_string);
+      return -1;
+   }
 
    return 0;
 }
