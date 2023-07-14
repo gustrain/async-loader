@@ -36,19 +36,171 @@
       return return_fail;                                                      \
    }
 
-/* Python wrapper for lstate_t type. */
+
+/* ---------------- */
+/*   LOADER ENTRY   */
+/* ---------------- */
+
+/* Python wrapper for entry_t struct. */
+typedef struct {
+   PyObject_HEAD
+
+   entry_t *entry;
+} Entry;
+
+/* Entry deallocate method. */
+static void
+Entry_dealloc(PyObject *self)
+{
+   return;
+}
+
+/* Entry allocation method. */
+static PyObject *
+Entry_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
+   return NULL;
+}
+
+/* Entry initialization mmethod. */
+static int
+Entry_init(PyObject *self, PyObject *args, PyObject *kwds)
+{
+   return -1;
+}
+
+/* TODO.
+
+   Release an entry. Causes the */
+static PyObject *
+Worker_wait_get(Worker *self, PyObject *args, PyObject *kwds)
+{
+   return NULL;
+}
+
+/* Entry methods array. */
+static PyMethodDef Entry_methods[] = {
+   {NULL}
+};
+
+/* Entry type declaration. */
+static PyTypeObject PythonEntryType = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "asyncloader.LoaderEntry",
+    .tp_doc = PyDoc_STR("Loader entry"),
+    .tp_basicsize = sizeof(Entry),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+
+    /* Methods. */
+    .tp_dealloc = Entry_dealloc,
+    .tp_new = Entry_new,
+    .tp_init = Entry_init,
+    .tp_methods = Entry_methods,
+};
+
+
+/* ------------------ */
+/*   WORKER CONTEXT   */
+/* ------------------ */
+
+/* Python wrapper for wstate_t struct. */
+typedef struct {
+   PyObject_HEAD
+
+   wstate_t *worker;
+} Worker;
+
+/* Worker deallocate method. */
+static void
+Worker_dealloc(PyObject *self)
+{
+   return;
+}
+
+/* Worker allocation method. */
+static PyObject *
+Worker_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
+   return NULL;
+}
+
+/* Worker initialization mmethod. */
+static int
+Worker_init(PyObject *self, PyObject *args, PyObject *kwds)
+{
+   return -1;
+}
+
+/* TODO.
+
+   Worker method to request a file be loaded. */
+static PyObject *
+Worker_request(Worker *self, PyObject *args, PyObject *kwds)
+{
+   return NULL;
+}
+
+/* TODO.
+
+   Worker method to try to get a file. If a file is waiting in the completion
+   queue, that file is returned and popped from the queue. Otherwise, NULL is
+   returned. */
+static PyObject *
+Worker_try_get(Worker *self, PyObject *args, PyObject *kwds)
+{
+
+}
+
+/* TODO.
+
+   Worker method to block until a file is loaded. Removes the file from the
+   completion queue, and returns it. */
+static PyObject *
+Worker_wait_get(Worker *self, PyObject *args, PyObject *kwds)
+{
+
+}
+
+/* Worker methods array. */
+static PyMethodDef Worker_methods[] = {
+   {NULL}
+};
+
+/* Worker type declaration. */
+static PyTypeObject PythonWorkerType = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "asyncloader.Worker",
+    .tp_doc = PyDoc_STR("Worker context"),
+    .tp_basicsize = sizeof(Worker),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+
+    /* Methods. */
+    .tp_dealloc = Worker_dealloc,
+    .tp_new = Worker_new,
+    .tp_init = Worker_init,
+    .tp_methods = Worker_methods,
+};
+
+
+/* ------------------ */
+/*   LOADER PROCESS   */
+/* ------------------ */
+
+/* Python wrapper for lstate_t struct. */
 typedef struct {
    PyObject_HEAD
 
    lstate_t *loader;    /* Asynchronous loader state. */
 
-} PyLoader;
+} Loader;
 
-/* PyLoader deallocate method. */
+/* Loader deallocate method. */
 static void
-PyLoader_dealloc(PyObject *self)
+Loader_dealloc(PyObject *self)
 {
-   PyLoader *loader = (PyLoader *) self;
+   Loader *loader = (Loader *) self;
    if (loader == NULL) {
       return;
    }
@@ -64,17 +216,17 @@ PyLoader_dealloc(PyObject *self)
       mmap_free(loader->loader, sizeof(lstate_t));
    }
 
-   /* Free the PyLoader wrapper. */
+   /* Free the Loader wrapper. */
    Py_TYPE(loader)->tp_free((PyObject *) loader);
 }
 
-/* PyLoader allocation method. */
+/* Loader allocation method. */
 static PyObject *
-PyLoader_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+Loader_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
-   /* Allocate the PyLoader struct. */
-   PyLoader *self;
-   if ((self = (PyLoader *) type->tp_alloc(type, 0)) == NULL) {
+   /* Allocate the Loader struct. */
+   Loader *self;
+   if ((self = (Loader *) type->tp_alloc(type, 0)) == NULL) {
       PyErr_NoMemory();
       return NULL;
    }
@@ -82,11 +234,11 @@ PyLoader_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
    return (PyObject *) self;
 }
 
-/* PyLoader initialization method. */
+/* Loader initialization method. */
 static int
-PyLoader_init(PyObject *self, PyObject *args, PyObject *kwds)
+Loader_init(PyObject *self, PyObject *args, PyObject *kwds)
 {
-   PyLoader *loader = (PyLoader *) self;
+   Loader *loader = (Loader *) self;
 
    /* Parse arguments. */
    size_t queue_depth, max_file_size, n_workers, min_dispatch_n;
@@ -132,3 +284,61 @@ PyLoader_init(PyObject *self, PyObject *args, PyObject *kwds)
 
    return 0;
 }
+
+/* TODO.
+   
+   Loader method to become a loader process. */
+static PyObject *
+Loader_become_loader(Loader *self, PyObject *args, PyObject *kwds)
+{
+   /* TODO. */
+
+   return NULL;
+}
+
+/* TODO.
+   
+   Loader method to spawn a loader process. */
+static PyObject *
+Loader_spawn_loader(Loader *self, PyObject *args, PyObject *kwds)
+{
+   /* TODO. */
+
+   return NULL;
+}
+
+/* TODO.
+
+   Loader method to get the context (wstate_t) for a worker. */
+static PyObject *
+Loader_get_worker_context(Loader *self, PyObject *args, PyObject *kwds)
+{
+
+}
+
+/* Loader methods array. */
+static PyMethodDef Loader_methods[] = {
+   {NULL}
+};
+
+/* Loader type declaration. */
+static PyTypeObject PythonLoaderType = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "asyncloader.Loader",
+    .tp_doc = PyDoc_STR("Loader context"),
+    .tp_basicsize = sizeof(Loader),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+
+    /* Methods. */
+    .tp_dealloc = Loader_dealloc,
+    .tp_new = Loader_new,
+    .tp_init = Loader_init,
+    .tp_methods = Loader_methods,
+};
+
+
+/* --------------- */
+/*   MODULE INIT   */
+/* --------------- */
+
