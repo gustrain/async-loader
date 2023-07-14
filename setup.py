@@ -18,5 +18,7 @@ setup(name = 'Async File Loader',
       author_email = 'gus@waldspurger.com',
       license = 'MIT',
       ext_modules = [
-            Extension('AsyncLoader', sources = [])
+            Extension('AsyncLoader', sources = ['csrc/asyncmodule/asyncmodule.c'
+                                                'csrc/async/async.c',
+                                                'csrc/utils/alloc.c'])
       ])

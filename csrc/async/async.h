@@ -26,39 +26,74 @@
 
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdbool.h>
+#include <pthread.h>
 #include <stdatomic.h>
+#include <liburing.h>
 
-/* Input queue entry. */
-typedef struct {
+#define MAX_PATH_LEN (128)
 
-} iq_entry_t;
+/* Queue entry. */
+typedef struct queue_entry {
+    char          path[MAX_PATH_LEN+1]; /* Filepath data was read from. */
+    int           fd;                   /* File descriptor. Belongs to loader.
+                                           Not to be touched by workers. Only
+                                           valid while IO is in-flight. */
+    struct iovec *iovecs;               /* Array of MAX_SIZE / BLOCK_SIZE iovec
+                                           structs used for liburing AIO. */
+    size_t        n_vecs;               /* Number of structs in IOVECS. */
+    uint8_t      *data;                 /* File data. */
+    size_t        size;                 /* Size of file data in bytes. */
+    size_t        max_size;             /* Maximum file data size in bytes. */
 
-/* Output queue entry. */
-typedef struct {
-
-} oq_entry_t;
+    /* Free/ready link list. */
+    struct worker_state *worker;        /* Worker that owns this queue. */
+    struct queue_entry  *next;          /* Next entry in status list. */
+    struct queue_entry  *prev;          /* Previous entry in status list. */
+} entry_t;
 
 /* Worker state. Input/output queues unique to that worker. */
-typedef struct {
-    /* Input queue. */
-    iq_entry_t *in_queue;       /* IN_CAPACITY input queue entries. */
-    iq_entry_t *in_next;        /* Next IN_QUEUE entry to check. */
-    size_t      in_used;        /* IN_QUEUE entries currently in use. */
-    size_t      in_capacity;    /* Total entries in IN_QUEUE. */
+typedef struct worker_state {
+    /* Input buffer. */
+    size_t   capacity;  /* Total number of entries in QUEUE. */
+    entry_t *queue;     /* CAPACITY queue entries. */
 
-    /* Output queue. */
-    oq_entry_t *out_queue;      /* OUT_CAPACITY output queue entries. */
-    oq_entry_t *out_next;       /* Next OUT_QUEUE entry to check. */
-    size_t      out_used;       /* OUT_QUEUE entries currently in used. */
-    size_t      out_capacity;   /* Total entries in OUT_QUEUE. */
+    /* Status lists. Mutually exclusive, all using NEXT field of entry. Entries
+       move exclusively in a loop, and are only ever present in at most 1 list.
+
+            free -> ready -> completed -> free
+        
+       Lists should be maintained in FIFO order, and must be looped so that the
+       head's PREV field points to the tail of the list. When an entry has IO
+       issued, it is removed from the ready list. It is only added to the
+       completed list once that IO has completed. In the interim it is tracked
+       only by the uring buffer. Similarly, once a worker reads an entry from
+       the completed list, it is only added to the free list upon release. */
+    entry_t *free;          /* Unused queue entries. */
+    entry_t *ready;         /* Queue entries ready to have IO issued. */
+    entry_t *completed;     /* Queue entries with completed IO. */
+
+    /* Synchronization. */
+    pthread_spinlock_t free_lock;       /* Protects FREE. */
+    pthread_spinlock_t ready_lock;      /* Protects READY. */
+    pthread_spinlock_t completed_lock;  /* Protects COMPLETED. */
 } wstate_t;
 
 /* Loader (reader + responder) state. */
 typedef struct {
-    wstate_t *states;       /* N_STATES worker states. */
-    size_t    n_states;     /* Number of worker states in STATES. */
-    
-    size_t    dispatch_n;   /* Number of async IO requests to send at once. */
+    wstate_t       *states;         /* N_STATES worker states. */
+    size_t          n_states;       /* Worker states in STATES. */
+    size_t          dispatch_n;     /* Async IO requests to send at once. */
+    struct io_uring ring;           /* Submission ring buffer for liburing. */
 } lstate_t;
+
+
+bool async_try_request(wstate_t *state, char *path);
+entry_t *async_try_get(wstate_t *state);
+void async_release(entry_t *e);
+
+void async_start(lstate_t *loader);
+int async_init(lstate_t *loader, size_t queue_depth, size_t max_file_size, size_t n_workers, size_t min_dispatch_n);
+
 
 #endif

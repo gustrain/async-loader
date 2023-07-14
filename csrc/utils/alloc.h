@@ -20,3 +20,24 @@
    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
    SOFTWARE.
    */
+
+#ifndef __UTILS_ALLOC_H_
+#define __UTILS_ALLOC_H_
+
+#include <stdio.h>
+
+#define DEBUG 0
+#define DEBUG_LOG(fmt, ...) \
+    do { if (DEBUG) fprintf(stderr, "[%8s:%-5d] " fmt, __FILE__, \
+                            __LINE__, ## __VA_ARGS__); } while (0)
+
+#define ALT_DEBUG 0
+#define ALT_DEBUG_LOG(fmt, ...) \
+    do { if (ALT_DEBUG) fprintf(stderr, "[%8s:%-5d] " fmt, __FILE__, \
+                                __LINE__, ## __VA_ARGS__); } while (0)
+
+
+void *mmap_alloc(size_t size);
+void mmap_free(void *ptr, size_t size);
+
+#endif

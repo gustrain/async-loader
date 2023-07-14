@@ -20,3 +20,36 @@
    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
    SOFTWARE.
    */
+
+#include "alloc.h"
+
+#include <stdlib.h>
+#include <assert.h>
+#include <sys/mman.h>
+
+#define _GNU_SOURCE
+
+
+/* Allocate shared memory using an anonymous mmap. If this process forks, and
+   all "shared" state was allocated using this function, everything will behave
+   properly, as if we're synchronizing threads.
+   
+   Returns a pointer to a SIZE-byte region of memory on success, and returns
+   NULL on failure. */
+void *
+mmap_alloc(size_t size)
+{
+   /* Allocate SIZE bytes of page-aligned memory in an anonymous shared mmap. */
+   assert(size > 0);
+   return mmap(NULL, size,
+               PROT_READ | PROT_WRITE,
+               MAP_ANONYMOUS | MAP_SHARED | MAP_POPULATE,
+               -1, 0);
+}
+
+/* Free memory allocated with mmap_alloc. */
+void
+mmap_free(void *ptr, size_t size)
+{
+   munmap(ptr, size);
+}
