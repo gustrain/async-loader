@@ -27,6 +27,7 @@
 #include <assert.h>
 #include <unistd.h>
 #include <signal.h>
+#include <sys/wait.h>
 #include "../../csrc/utils/alloc.h"
 #include "../../csrc/async/async.h"
 
@@ -36,8 +37,7 @@ void
 test_worker_loop(wstate_t *worker,
                  uint64_t id,
                  char **filepaths,
-                 size_t n_filepaths,
-                 pthread_mutex_t *console_lock)
+                 size_t n_filepaths)
 {
     struct timespec start, request_end, retrieve_end, release_end;
     entry_t *entries[n_filepaths];
@@ -67,9 +67,7 @@ test_worker_loop(wstate_t *worker,
     long retrieve_time = retrieve_end.tv_nsec - start.tv_nsec + (retrieve_end.tv_sec - start.tv_sec) * 1e9;
     long release_time = release_end.tv_nsec - start.tv_nsec + (release_end.tv_sec - start.tv_sec) * 1e9;
 
-    pthread_mutex_lock(console_lock);
-    fprintf(stdout,
-           "Worker %lu results --\n"
+    printf("Worker %lu results --\n"
            "\t Request time: %ld ns\n"
            "\tRetrieve time: %ld ns (delta %ld ns)\n"
            "\t Release time: %ld ns (delta %ld ns)\n",
@@ -77,8 +75,6 @@ test_worker_loop(wstate_t *worker,
            request_time,
            retrieve_time, retrieve_time - request_time,
            release_time, release_time - retrieve_time);
-    fflush(stdout);
-    pthread_mutex_unlock(console_lock);
 }
 
 
@@ -96,54 +92,47 @@ test_config(size_t queue_depth,
     lstate_t *loader = mmap_alloc(sizeof(lstate_t));
     assert(loader != NULL);
 
-    /* Create a tracker for active worker processes. */
-    atomic_size_t n_active_workers;
-    atomic_store(&n_active_workers, n_workers);
-
-    /* Create lock for printing results to console. */
-    pthread_mutex_t console_lock;
-    pthread_mutexattr_t console_lock_attr;
-    pthread_mutexattr_init(&console_lock_attr);
-    pthread_mutexattr_setpshared(&console_lock_attr, PTHREAD_PROCESS_SHARED);
-    pthread_mutex_init(&console_lock, &console_lock_attr);
-
     /* Initialize the loader. */
     int status = async_init(loader, queue_depth, max_file_size, n_workers, min_dispatch_n);
     assert(status == 0);
 
-    /* Fork, spawning loader process and worker processes. */
+    /* Fork, spawning worker processes. */
+    pid_t worker_pids[n_workers];
     size_t fp_per_worker = n_filepaths / n_workers;
     for (size_t i = 0; i < n_workers; i++) {
-        if (fork() > 0) {
+        if ((worker_pids[i] = fork()) > 0) {
             continue;
         }
 
         /* Start child as a worker. */
-        test_worker_loop(&loader->states[i], i, filepaths + fp_per_worker * i, fp_per_worker, &console_lock);
+        test_worker_loop(&loader->states[i], i, filepaths + fp_per_worker * i, fp_per_worker);
 
-        /* On worker termination, decrement number of active workers. If we were
-           the last worker, kill the parent. */
-        if (atomic_fetch_sub(&n_active_workers, 1) == 1) {
-            pthread_mutex_lock(&console_lock);
-            printf("Final worker has completed; killing loader.\n");
-            fflush(stdout);
-            pthread_mutex_unlock(&console_lock);
-            kill(getppid(), SIGKILL);
-
-            /* Return, so that further tests can occur. */
-            return;
-        }
-
-        /* Once finished, exit. */
-        pthread_mutex_lock(&console_lock);
+        /* Exit worker upon completion. */
         printf("Worker %lu exiting.\n", i);
-        fflush(stdout);
-        pthread_mutex_unlock(&console_lock);
         exit(EXIT_SUCCESS);
     }
 
-    /* Parent becomes the loader once all workers have been created. */
-    async_start(loader);
+    /* Fork, spawning loader process. */
+    pid_t loader_pid;
+    if ((loader_pid = fork()) == 0) {
+        /* Child becomes loader process. Should never return. */
+        async_start(loader);
+
+        /* If the loader returned, something went wrong. */
+        printf("!!! loader returned !!!\n");
+        exit(EXIT_FAILURE);
+    }
+
+    /* Wait on the worker processes. */
+    for (size_t i = 0; i < n_workers; i++) {
+        int status;
+        waitpid(worker_pids[i], &status, 0);
+        assert(status == EXIT_SUCCESS);
+    }
+
+    /* Kill the loader process. */
+    printf("All workers have terminated. Killing loader.\n");
+    kill(loader_pid, SIGKILL);
 }
 
 int
