@@ -86,13 +86,14 @@ Entry_release(Worker *self, PyObject *args, PyObject *kwds)
       return NULL;
    }
    async_release(entry->entry);
+   Py_DECREF(self);
 
    return Py_None;
 }
 
 /* Entry methods array. */
 static PyMethodDef Entry_methods[] = {
-   {"release", (PyCFunction) Entry_release, METH_NOARGS, "Release (and de-allocate) this entry."},
+   {"release", (PyCFunction) Entry_release, METH_NOARGS, "Release (and discard) this entry."},
    {NULL}
 };
 
