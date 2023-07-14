@@ -41,31 +41,45 @@
 /*   LOADER ENTRY   */
 /* ---------------- */
 
-/* Python wrapper for entry_t struct. */
+/* TODO.
+   
+   Python wrapper for entry_t struct. */
 typedef struct {
    PyObject_HEAD
 
    entry_t *entry;
 } Entry;
 
-/* Entry deallocate method. */
+/* TODO.
+   
+   Entry deallocate method. */
 static void
 Entry_dealloc(PyObject *self)
 {
+   /* TODO. */
+
    return;
 }
 
-/* Entry allocation method. */
+/* TODO.
+   
+   Entry allocation method. */
 static PyObject *
 Entry_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
+   /* TODO. */
+
    return NULL;
 }
 
-/* Entry initialization mmethod. */
+/* TODO.
+   
+   Entry initialization mmethod. */
 static int
 Entry_init(PyObject *self, PyObject *args, PyObject *kwds)
 {
+   /* TODO. */
+
    return -1;
 }
 
@@ -75,6 +89,8 @@ Entry_init(PyObject *self, PyObject *args, PyObject *kwds)
 static PyObject *
 Worker_wait_get(Worker *self, PyObject *args, PyObject *kwds)
 {
+   /* TODO. */
+
    return NULL;
 }
 
@@ -115,6 +131,8 @@ typedef struct {
 static void
 Worker_dealloc(PyObject *self)
 {
+   /* TODO. */
+
    return;
 }
 
@@ -122,6 +140,8 @@ Worker_dealloc(PyObject *self)
 static PyObject *
 Worker_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
+   /* TODO. */
+
    return NULL;
 }
 
@@ -129,6 +149,8 @@ Worker_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 static int
 Worker_init(PyObject *self, PyObject *args, PyObject *kwds)
 {
+   /* TODO. */
+
    return -1;
 }
 
@@ -138,6 +160,8 @@ Worker_init(PyObject *self, PyObject *args, PyObject *kwds)
 static PyObject *
 Worker_request(Worker *self, PyObject *args, PyObject *kwds)
 {
+   /* TODO. */
+
    return NULL;
 }
 
@@ -149,7 +173,9 @@ Worker_request(Worker *self, PyObject *args, PyObject *kwds)
 static PyObject *
 Worker_try_get(Worker *self, PyObject *args, PyObject *kwds)
 {
+   /* TODO. */
 
+   return NULL;
 }
 
 /* TODO.
@@ -159,7 +185,9 @@ Worker_try_get(Worker *self, PyObject *args, PyObject *kwds)
 static PyObject *
 Worker_wait_get(Worker *self, PyObject *args, PyObject *kwds)
 {
+   /* TODO. */
 
+   return NULL;
 }
 
 /* Worker methods array. */
@@ -313,7 +341,9 @@ Loader_spawn_loader(Loader *self, PyObject *args, PyObject *kwds)
 static PyObject *
 Loader_get_worker_context(Loader *self, PyObject *args, PyObject *kwds)
 {
+   /* TODO. */
 
+   return NULL;
 }
 
 /* Loader methods array. */
@@ -342,3 +372,47 @@ static PyTypeObject PythonLoaderType = {
 /*   MODULE INIT   */
 /* --------------- */
 
+static PyMethodDef ModuleMethods[] = {
+   {NULL},
+};
+
+static struct PyModuleDef asyncloadermodule = {
+   PyModuleDef_HEAD_INIT,
+   .m_name = "asyncloader",
+   .m_doc = "Python module for asynchronous file loading.",
+   .m_size = -1,
+   .m_methods = ModuleMethods,
+};
+
+/* Register a Python type with a module. */
+#define REGISTER_TYPE(module, type_addr, name)                                 \
+   Py_INCREF(type_addr);                                                       \
+   if (PyModule_AddObject(module, name, (PyObject *) type_addr) < 0) {         \
+      Py_DECREF(type_addr);                                                    \
+      Py_DECREF(module);                                                       \
+      return NULL;                                                             \
+   }
+
+PyMODINIT_FUNC
+PyInit_asyncloader(void)
+{
+   /* Create module. */
+   PyObject *module;
+   if ((module = PyModule_Create(&asyncloadermodule)) == NULL) {
+      return NULL;
+   }
+
+   /* Ready all types. */
+   if (PyType_Ready(&PythonEntryType)  < 0 ||
+       PyType_Ready(&PythonWorkerType) < 0 ||
+       PyType_Ready(&PythonLoaderType) < 0) {
+      return NULL;
+   }
+
+   /* Register all types. */
+   REGISTER_TYPE(module, "Entry", &PythonEntryType);
+   REGISTER_TYPE(module, "Worker", &PythonWorkerType);
+   REGISTER_TYPE(module, "Loader", &PythonLoaderType);
+
+   return module;
+}
