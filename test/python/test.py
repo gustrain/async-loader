@@ -40,7 +40,7 @@ def get_all_filepaths(root: str, extension: str = "*"):
 def load_normal(filepaths: List[str]):
     begin = time.time()
     for filepath in filepaths:
-        with open(filepath, 'r') as file:
+        with open(filepath, 'rb') as file:
             foo = file.read(-1) # Read the entire file
     end = time.time()
 
