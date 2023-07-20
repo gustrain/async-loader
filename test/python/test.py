@@ -98,7 +98,8 @@ def main():
     filepath = sys.argv[1]
     extension = sys.argv[2]
     filepaths = get_all_filepaths(filepath, extension)
-    print("Filepaths:\n{}".format(filepaths))
+    max_size = max([os.path.getsize(path) for path in filepaths])
+    print("Max size: {}\nFilepaths: {}".format(max_size, filepaths))
 
     # Get normal loading time
     begin_normal = time.time()
@@ -110,7 +111,7 @@ def main():
     worker_configs = [1]
     for n_workers in worker_configs:
         begin_async = time.time()
-        load_async(filepaths, n_workers)
+        load_async(filepaths, max_size, n_workers)
         time_async = time.time() - begin_async
         print("AsyncLoader ({} workers): {:.04}".format(n_workers, time_async))
 
