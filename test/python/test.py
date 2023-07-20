@@ -48,8 +48,6 @@ def load_normal(filepaths: List[str]):
 
 # Load all files in FILEPATHS using an AsyncLoader worker context.
 def load_async_worker_loop(filepaths: List[str], batch_size: int, worker: al.Worker):
-    print("Worker given {} files".format(len(filepaths)))
-
     # Read everything, one batch at a time.
     while filepaths:
         # Submit requests
