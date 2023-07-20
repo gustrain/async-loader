@@ -350,14 +350,14 @@ async_init(lstate_t *loader,
     /* Assign all of the correct locations to each state/queue. */
     size_t entry_n = 0;
     for (size_t i = 0; i < n_workers; i++) {
-        wstate_t *state = loader->states + i * sizeof(wstate_t);
+        wstate_t *state = &loader->states[i];
 
         state->capacity = queue_depth;
 
         /* Assign memory for queues and file data. */
         state->queue = (entry_t *) (entry_start + entry_n * sizeof(entry_t));
         for (size_t j = 0; j < queue_depth; j++) {
-            entry_t *e = state->queue + j * sizeof(entry_t);
+            entry_t *e = &state->queue[j];
 
             /* Data needs to be block-aligned. */
             e->data = data_start + entry_n * max_file_size;
