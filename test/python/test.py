@@ -98,7 +98,7 @@ def main():
     filepath = sys.argv[1]
     extension = sys.argv[2]
     filepaths = get_all_filepaths(filepath, extension)
-    max_size = max([os.path.getsize(path) for path in filepaths])
+    max_size = ((max([os.path.getsize(path) for path in filepaths]) // (1024 * 4)) + 1) * 1024 * 4
     print("Max size: {}\nFilepaths: {}".format(max_size, filepaths))
 
     # Get normal loading time
