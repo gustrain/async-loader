@@ -113,7 +113,7 @@ def verify_worker_loop(filepaths: List[str], batch_size: int, worker: al.Worker,
         # Retrieve results
         for _ in range(n_this_batch):
             entry = worker.wait_get()
-            filepath = entry.get_filepath()
+            filepath = entry.get_filepath().decode('utf-8')
             data = entry.get_data()
 
             if (data != reference_data[filepath]):
