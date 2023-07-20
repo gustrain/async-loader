@@ -91,9 +91,12 @@ def main():
     if len(sys.argv) < 2:
         print("Please provide the filepath of a directory to load from.")
         return
+    elif (len(sys.argv) < 3):
+        print("Please provide the desired file extension to be loaded.")
     
     filepath = sys.argv[1]
-    filepaths = get_all_filepaths(filepath)
+    extension = sys.argv[2]
+    filepaths = get_all_filepaths(filepath, extension)
 
     # Get normal loading time
     begin_normal = time.time()
