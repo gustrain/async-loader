@@ -56,6 +56,7 @@ def load_async_worker_loop(filepaths: List[str], batch_size: int, worker: al.Wor
         n_this_batch = min(batch_size, len(filepaths))
         print("Requesting {} files".format(n_this_batch))
         for _ in range(n_this_batch):
+            print("abc")
             worker.request(filepath = filepaths.pop())
 
         # Retrieve results
@@ -63,8 +64,6 @@ def load_async_worker_loop(filepaths: List[str], batch_size: int, worker: al.Wor
         for _ in range(n_this_batch):
             entry = worker.wait_get()
             entry.release()
-
-        to_collect = 0
 
 # Load all files in FILEPATHS using AsyncLoader with N_WORKERS worker threads.
 def load_async(filepaths: List[str], batch_size: int, max_file_size: int, n_workers: int):
