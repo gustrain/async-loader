@@ -38,9 +38,13 @@ def get_all_filepaths(root: str, extension: str = "*"):
 
 # Load all files in FILEPATHS using regular synchronous IO.
 def load_normal(filepaths: List[str]):
+    begin = time.time()
     for filepath in filepaths:
         with open(filepath, 'r') as file:
-            file.read(-1) # Read the entire file
+            foo = file.read(-1) # Read the entire file
+    end = time.time()
+
+    return end - begin
 
 # Load all files in FILEPATHS using an AsyncLoader worker context.
 def load_async_worker_loop(filepaths: List[str], worker: al.Worker):
@@ -74,6 +78,9 @@ def load_async(filepaths: List[str], max_file_size: int, n_workers: int):
         ))
         processes.append(process)
 
+    # Don't count setup for timing.
+    begin = time.time()
+
     # Start all the processes
     loader_process.start()
     for process in processes:
@@ -82,9 +89,12 @@ def load_async(filepaths: List[str], max_file_size: int, n_workers: int):
     # Wait on the workers
     for process in processes:
         process.join()
+    end = time.time()
 
     # Kill the loader once the workers are done
     loader_process.kill()
+
+    return end - begin
 
 def main():
 
@@ -102,17 +112,13 @@ def main():
     print("Max size: {}\nFilepaths: {}".format(max_size, filepaths))
 
     # Get normal loading time
-    begin_normal = time.time()
-    load_normal(filepaths)
-    time_normal = time.time() - begin_normal
+    time_normal = load_normal(filepaths)
     print("Normal: {:.04}s.".format(time_normal))
 
     # Get async loading time(s)
     worker_configs = [1, 2, 4, 8]
     for n_workers in worker_configs:
-        begin_async = time.time()
-        load_async(filepaths, max_size, n_workers)
-        time_async = time.time() - begin_async
+        time_async = load_async(filepaths, max_size, n_workers)
         print("AsyncLoader ({} workers): {:.04}".format(n_workers, time_async))
 
 if __name__ == "__main__":
