@@ -329,6 +329,11 @@ Loader_init(PyObject *self, PyObject *args, PyObject *kwds)
       return -1;
    }
 
+   printf("queue_depth: %lu", queue_depth);
+   printf("max_file_size: %lu", max_file_size);
+   printf("n_workers: %lu", n_workers);
+   printf("min_dispatch_n: %lu", min_dispatch_n);
+
    /* Sanity-check arguments. */
    ARG_CHECK(queue_depth > 0, "queue depth must be positive", -1);
    ARG_CHECK(max_file_size > 0, "max file size must be positive", -1);
