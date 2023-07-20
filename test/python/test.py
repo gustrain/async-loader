@@ -98,6 +98,7 @@ def main():
     filepath = sys.argv[1]
     extension = sys.argv[2]
     filepaths = get_all_filepaths(filepath, extension)
+    print("Filepaths:\n{}".format(filepaths))
 
     # Get normal loading time
     begin_normal = time.time()
