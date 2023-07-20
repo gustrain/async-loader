@@ -68,12 +68,9 @@ fifo_push(entry_t **head, pthread_spinlock_t *lock, entry_t *elem)
 static entry_t *
 fifo_pop(entry_t **head, pthread_spinlock_t *lock)
 {
-    printf("Acquiring lock...\n");
     pthread_spin_lock(lock);
-    printf("Lock acquired\n");
     entry_t *out = *head;
     if (out == NULL) {
-        printf("out == NULL\n");
         pthread_spin_unlock(lock);
         return NULL;
     }
@@ -86,9 +83,7 @@ fifo_pop(entry_t **head, pthread_spinlock_t *lock)
     if (*head == out) {
         *head = NULL;
     }
-    printf("Releasing lock...\n");
     pthread_spin_unlock(lock);
-    printf("Lock released\n");
 
     return out;
 }
@@ -102,26 +97,16 @@ fifo_pop(entry_t **head, pthread_spinlock_t *lock)
 bool
 async_try_request(wstate_t *state, char *path)
 {
-    printf("request received for %s\n", path);
-
     /* Get a free entry. Return false if none available. */
     entry_t *e = fifo_pop(&state->free, &state->free_lock);
-    printf("AAAA\n");
     if (e == NULL) {
-        printf("the list was empty...\n");
-        fflush(stdout);
-
         fprintf(stderr, "free list is empty.\n");
         return false;
     }
-    printf("BBBB\n");
 
     /* Configure the entry and move it into the ready list. */
     strncpy(e->path, path, MAX_PATH_LEN + 1);
-    printf("CCCC\n");
     fifo_push(&state->ready, &state->ready_lock, e);
-
-    printf("request completed for %s\n", path);
 
     return true;
 }
