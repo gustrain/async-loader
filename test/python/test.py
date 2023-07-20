@@ -48,14 +48,17 @@ def load_normal(filepaths: List[str]):
 
 # Load all files in FILEPATHS using an AsyncLoader worker context.
 def load_async_worker_loop(filepaths: List[str], batch_size: int, worker: al.Worker):
+    print("Worker given {} files".format(len(filepaths)))
+
     to_collect = 0
 
     # Read everything, one batch at a time.
     while filepaths:
         # Submit requests
         for _ in range(batch_size):
-            worker.request(filepath = filepaths.pop())
-            to_collect += 1
+            if filepaths:
+                worker.request(filepath = filepaths.pop())
+                to_collect += 1
 
         # Retrieve results
         for _ in range(to_collect):
@@ -131,7 +134,7 @@ def main():
         for batch_size in batch_configs:
             os.system("sudo ./clear_cache.sh")
             time_async = load_async(filepaths, batch_size, max_size, n_workers)
-            print("AsyncLoader ({} workers, {} batch size): {:.04}".format(n_workers, batch_size, time_async))
+            print("AsyncLoader ({} workers, {} batch size): {:.04}s".format(n_workers, batch_size, time_async))
 
 if __name__ == "__main__":
     main()
