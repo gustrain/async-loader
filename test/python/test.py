@@ -117,7 +117,7 @@ def verify_worker_loop(filepaths: List[str], batch_size: int, worker: al.Worker,
             data = entry.get_data()
 
             if (data != reference_data[filepath]):
-                print("Filedata mismatch for {}:\n\tasyncloader: {}...\n\treference:   {}...", filepath, data[:16], reference_data[filepath][:16])
+                print("Filedata mismatch for {}:\n\tasyncloader: {}...\n\treference:   {}...".format(filepath, data[:16], reference_data[filepath][:16]))
 
             entry.release()
 
