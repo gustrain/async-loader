@@ -68,9 +68,12 @@ fifo_push(entry_t **head, pthread_spinlock_t *lock, entry_t *elem)
 static entry_t *
 fifo_pop(entry_t **head, pthread_spinlock_t *lock)
 {
+    printf("Acquiring lock...\n");
     pthread_spin_lock(lock);
+    printf("Lock acquired\n");
     entry_t *out = *head;
     if (out == NULL) {
+        printf("out == NULL\n");
         pthread_spin_unlock(lock);
         return NULL;
     }
@@ -83,7 +86,9 @@ fifo_pop(entry_t **head, pthread_spinlock_t *lock)
     if (*head == out) {
         *head = NULL;
     }
+    printf("Releasing lock...\n");
     pthread_spin_unlock(lock);
+    printf("Lock released\n");
 
     return out;
 }
