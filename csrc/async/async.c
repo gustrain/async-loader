@@ -300,15 +300,10 @@ async_init(lstate_t *loader,
     size_t worker_size = sizeof(struct iovec) + queue_size + sizeof(wstate_t);
     size_t total_size = worker_size * n_workers + BLOCK_SIZE;
 
-    printf("A\n");
-
     /* Do the allocation. */
     if ((loader->states = mmap_alloc(total_size)) == NULL) {
         return -ENOMEM;
     }
-    printf("loader->states occupies %p to %p\n", loader->states, loader->states + total_size);
-
-    printf("A\n");
 
     /*   LO                                  HI
         ┌────────┬───────┬───────┬─────────────┐
@@ -333,31 +328,20 @@ async_init(lstate_t *loader,
     uint8_t *iovec_start = entry_start + entry_bytes;
     uint8_t *data_start  = iovec_start + iovec_bytes;
 
-    printf("C\n");
-
     /* Ensure that data is block-aligned. */
     data_start += BLOCK_SIZE - (((uint64_t) data_start) % BLOCK_SIZE);
     assert(((uint64_t) data_start) % BLOCK_SIZE == 0);
 
-    printf("D\n");
-
     /* Assign all of the correct locations to each state/queue. */
     size_t entry_n = 0;
     for (size_t i = 0; i < n_workers; i++) {
-        printf("worker # = %lu/%lu\n", i, n_workers);
         wstate_t *state = loader->states + i * sizeof(wstate_t);
-        printf("1\n");
-        printf("state = %p\n", state);
 
         state->capacity = queue_depth;
 
-        printf("2\n");
-
         /* Assign memory for queues and file data. */
         state->queue = (entry_t *) (entry_start + entry_n * sizeof(entry_t));
-        printf("3\n");
         for (size_t j = 0; j < queue_depth; j++) {
-            printf("depth = %lu/%lu\n", j, queue_depth);
             entry_t *e = state->queue + j * sizeof(entry_t);
 
             /* Data needs to be block-aligned. */
@@ -396,14 +380,10 @@ async_init(lstate_t *loader,
         pthread_spin_init(&state->completed_lock, PTHREAD_PROCESS_SHARED);
     }
 
-    printf("E\n");
-
     /* Set the loader's config states. */
     loader->n_states = n_workers;
     loader->dispatch_n = min_dispatch_n;
     loader->total_size = total_size;
-
-    printf("F\n");
 
     /* Initialize liburing. We don't need to worry about this not using shared
        memory because while worker interact with the shared queues, the IO
@@ -415,8 +395,6 @@ async_init(lstate_t *loader,
         mmap_free(loader->states, total_size);
         return status;
     }
-
-    printf("G\n");
 
     return 0;
 }
