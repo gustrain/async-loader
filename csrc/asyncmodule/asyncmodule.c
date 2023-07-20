@@ -92,7 +92,25 @@ Entry_init(PyObject *self, PyObject *args, PyObject *kwds)
    return 0;
 }
 
-/* Release an entry. Causes the */
+/* Get the filename for the data in this entry. */
+static PyObject *
+Entry_get_filepath(Worker *self, PyObject *args, PyObject *kwds)
+{
+   Entry *entry = (Entry *) self;
+
+   return PyBytes_FromString(entry->entry->path);
+}
+
+/* Get the data in this entry. */
+static PyObject *
+Entry_get_data(Worker *self, PyObject *args, PyObject *kwds)
+{
+   Entry *entry = (Entry *) self;
+
+   return PyBytes_FromStringAndSize(entry->entry->data, entry->entry->size);
+}
+
+/* Release an entry. Allows the entry wrapper to be GC'd. */
 static PyObject *
 Entry_release(Worker *self, PyObject *args, PyObject *kwds)
 {
@@ -111,6 +129,18 @@ Entry_release(Worker *self, PyObject *args, PyObject *kwds)
 
 /* Entry methods array. */
 static PyMethodDef Entry_methods[] = {
+   {
+      "get_filepath",
+      (PyCFunction) Entry_get_filepath,
+      METH_NOARGS,
+      "Get the filepath for this entry."
+   },
+   {
+      "get_data",
+      (PyCFunction) Entry_get_data,
+      METH_NOARGS,
+      "Get the data contained by this entry."
+   },
    {
       "release",
       (PyCFunction) Entry_release,

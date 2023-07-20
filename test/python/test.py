@@ -56,14 +56,10 @@ def load_async_worker_loop(filepaths: List[str], batch_size: int, worker: al.Wor
             if worker.request(filepath = filepaths.pop()) != True:
                 print("Worker request failed")
 
-        sys.stdout.flush()
-
         # Retrieve results
         for _ in range(n_this_batch):
             entry = worker.wait_get()
             entry.release()
-        
-        sys.stdout.flush()
 
 # Load all files in FILEPATHS using AsyncLoader with N_WORKERS worker threads.
 def load_async(filepaths: List[str], batch_size: int, max_file_size: int, n_workers: int):
@@ -105,6 +101,43 @@ def load_async(filepaths: List[str], batch_size: int, max_file_size: int, n_work
 
     return end - begin
 
+def verify_worker_loop(filepaths: List[str], batch_size: int, worker: al.Worker):
+    # Read everything, one batch at a time.
+    while filepaths:
+        # Submit requests
+        n_this_batch = min(batch_size, len(filepaths))
+        for _ in range(n_this_batch):
+            if worker.request(filepath = filepaths.pop()) != True:
+                print("Worker request failed")
+
+        # Retrieve results
+        for _ in range(n_this_batch):
+            entry = worker.wait_get()
+            filepath = entry.get_filepath()
+            data = entry.get_data()
+            entry.release()
+
+
+def verify_integrity(filepaths: List[str], batch_size: int, max_file_size: int, n_workers: int):
+    # Read everything, and store the data
+    data = {}
+    for filepath in filepaths:
+        with open(filepath, 'rb') as file:
+            data[filepath] = file.read(-1)
+
+    # Spin up an AsyncLoader and make sure it reads the same data
+    loader = al.Loader(queue_depth=batch_size,
+                       max_file_size=max_file_size,
+                       n_workers=n_workers,
+                       min_dispatch_n=-1)
+    loader_process = mp.Process(target=loader.become_loader)
+    worker_process =  mp.Process(target=verify_worker_loop, args=(filepaths, batch_size, loader.get_worker_context(id=0)))
+
+    loader_process.start()
+    worker_process.start()
+    worker_process.join()
+    loader_process.kill()
+
 def main():
 
     if len(sys.argv) < 2:
@@ -133,6 +166,9 @@ def main():
             os.system("sudo ./clear_cache.sh")
             time_async = load_async(filepaths, batch_size, max_size, n_workers)
             print("AsyncLoader ({} workers, {} batch size): {:.04}s".format(n_workers, batch_size, time_async))
+    
+    # Check integrity...
+
 
 if __name__ == "__main__":
     main()
