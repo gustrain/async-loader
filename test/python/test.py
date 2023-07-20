@@ -102,6 +102,9 @@ def load_async(filepaths: List[str], batch_size: int, max_file_size: int, n_work
     return end - begin
 
 def verify_worker_loop(filepaths: List[str], batch_size: int, worker: al.Worker, reference_data):
+    match_count = 0
+    mismatch_count = 0
+
     # Read everything, one batch at a time.
     while filepaths:
         # Submit requests
@@ -117,9 +120,14 @@ def verify_worker_loop(filepaths: List[str], batch_size: int, worker: al.Worker,
             data = entry.get_data()
 
             if (data != reference_data[filepath]):
+                mismatch_count += 1
                 print("Filedata mismatch for {}:\n\tasyncloader: {}...\n\treference:   {}...".format(filepath, data[:16], reference_data[filepath][:16]))
+            else:
+                match_count += 1
 
             entry.release()
+    
+    print("Integrity worker done. {} matches, {} mismatches".format(match_count, mismatch_count))
 
 def verify_integrity(filepaths: List[str], batch_size: int, max_file_size: int, n_workers: int):
     # Read everything, and store the data
@@ -158,7 +166,7 @@ def main():
 
     # Get normal loading time
     os.system("sudo ./clear_cache.sh")
-    time_normal = load_normal(filepaths)
+    time_normal = load_normal(filepaths.copy())
     print("Normal: {:.04}s.".format(time_normal))
 
     # Get async loading time(s)
@@ -167,12 +175,12 @@ def main():
     for n_workers in worker_configs:
         for batch_size in batch_configs:
             os.system("sudo ./clear_cache.sh")
-            time_async = load_async(filepaths, batch_size, max_size, n_workers)
+            time_async = load_async(filepaths.copy(), batch_size, max_size, n_workers)
             print("AsyncLoader ({} workers, {} batch size): {:.04}s".format(n_workers, batch_size, time_async))
     
     # Check integrity...
     print("\nChecking integrity with 1 worker/32 batch size...")
-    verify_integrity(filepaths, 32, max_size, 1)
+    verify_integrity(filepaths.copy(), 32, max_size, 1)
 
 
 if __name__ == "__main__":
