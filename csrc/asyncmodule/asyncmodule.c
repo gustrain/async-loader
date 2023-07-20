@@ -118,7 +118,7 @@ static PyMethodDef Entry_methods[] = {
 /* Entry type declaration. */
 static PyTypeObject PythonEntryType = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name = "asyncloader.LoaderEntry",
+    .tp_name = "AsyncLoader.LoaderEntry",
     .tp_doc = PyDoc_STR("Loader entry"),
     .tp_basicsize = sizeof(Entry),
     .tp_itemsize = 0,
@@ -233,7 +233,7 @@ static PyMethodDef Worker_methods[] = {
 /* Worker type declaration. */
 static PyTypeObject PythonWorkerType = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name = "asyncloader.Worker",
+    .tp_name = "AsyncLoader.Worker",
     .tp_doc = PyDoc_STR("Worker context"),
     .tp_basicsize = sizeof(Worker),
     .tp_itemsize = 0,
@@ -399,7 +399,7 @@ static PyMethodDef Loader_methods[] = {
 /* Loader type declaration. */
 static PyTypeObject PythonLoaderType = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name = "asyncloader.Loader",
+    .tp_name = "AsyncLoader.Loader",
     .tp_doc = PyDoc_STR("Loader context"),
     .tp_basicsize = sizeof(Loader),
     .tp_itemsize = 0,
@@ -421,9 +421,9 @@ static PyMethodDef ModuleMethods[] = {
    {NULL},
 };
 
-static struct PyModuleDef asyncloadermodule = {
+static struct PyModuleDef AsyncLoadermodule = {
    PyModuleDef_HEAD_INIT,
-   .m_name = "asyncloader",
+   .m_name = "AsyncLoader",
    .m_doc = "Python module for asynchronous file loading.",
    .m_size = -1,
    .m_methods = ModuleMethods,
@@ -439,11 +439,11 @@ static struct PyModuleDef asyncloadermodule = {
    }
 
 PyMODINIT_FUNC
-PyInit_asyncloader(void)
+PyInit_AsyncLoader(void)
 {
    /* Create module. */
    PyObject *module;
-   if ((module = PyModule_Create(&asyncloadermodule)) == NULL) {
+   if ((module = PyModule_Create(&AsyncLoadermodule)) == NULL) {
       return NULL;
    }
 
