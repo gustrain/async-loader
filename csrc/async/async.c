@@ -133,6 +133,7 @@ void
 async_release(entry_t *e)
 {
     /* Close the file used. */
+    printf("Closing %d\n", e->fd);
     close(e->fd);
 
     /* Reset state. */
@@ -187,6 +188,7 @@ async_perform_io(lstate_t *ld, entry_t *e)
     if ((e->fd = open(e->path, O_RDONLY)) < 0) {
         return -errno;
     };
+    printf("Opened %d\n", e->fd);
 
     /* Get the file's size, check it's within bounds. */
     off_t size = file_get_size(e->fd);
