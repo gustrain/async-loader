@@ -70,7 +70,7 @@ def load_async(filepaths: List[str], max_file_size: int, n_workers: int):
     for i in range(n_workers):
         process = mp.Process(target=load_async_worker_loop, args=(
             filepaths[i * files_per_loader : (i + 1) * files_per_loader],
-            loader.get_worker_context(id=i)
+            loader.get_worker_context(i)
         ))
         processes.append(process)
 
