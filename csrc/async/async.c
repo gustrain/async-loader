@@ -300,10 +300,14 @@ async_init(lstate_t *loader,
     size_t worker_size = sizeof(struct iovec) + queue_size + sizeof(wstate_t);
     size_t total_size = worker_size * n_workers + BLOCK_SIZE;
 
+    printf("A\n");
+
     /* Do the allocation. */
     if ((loader->states = mmap_alloc(total_size)) == NULL) {
         return -ENOMEM;
     }
+
+    printf("A\n");
 
     /*   LO                                  HI
         ┌────────┬───────┬───────┬─────────────┐
@@ -328,9 +332,13 @@ async_init(lstate_t *loader,
     uint8_t *iovec_start = entry_start + entry_bytes;
     uint8_t *data_start  = iovec_start + iovec_bytes;
 
+    printf("C\n");
+
     /* Ensure that data is block-aligned. */
     data_start += BLOCK_SIZE - (((uint64_t) data_start) % BLOCK_SIZE);
     assert(((uint64_t) data_start) % BLOCK_SIZE == 0);
+
+    printf("D\n");
 
     /* Assign all of the correct locations to each state/queue. */
     size_t entry_n = 0;
@@ -381,10 +389,14 @@ async_init(lstate_t *loader,
         pthread_spin_init(&state->completed_lock, PTHREAD_PROCESS_SHARED);
     }
 
+    printf("E\n");
+
     /* Set the loader's config states. */
     loader->n_states = n_workers;
     loader->dispatch_n = min_dispatch_n;
     loader->total_size = total_size;
+
+    printf("F\n");
 
     /* Initialize liburing. We don't need to worry about this not using shared
        memory because while worker interact with the shared queues, the IO
@@ -396,6 +408,8 @@ async_init(lstate_t *loader,
         mmap_free(loader->states, total_size);
         return status;
     }
+
+    printf("G\n");
 
     return 0;
 }
