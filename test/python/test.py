@@ -50,18 +50,15 @@ def load_normal(filepaths: List[str]):
 def load_async_worker_loop(filepaths: List[str], batch_size: int, worker: al.Worker):
     print("Worker given {} files".format(len(filepaths)))
 
-    to_collect = 0
-
     # Read everything, one batch at a time.
     while filepaths:
         # Submit requests
-        for _ in range(batch_size):
-            if filepaths:
-                worker.request(filepath = filepaths.pop())
-                to_collect += 1
+        n_this_batch = min(batch_size, len(filepaths))
+        for _ in range(n_this_batch):
+            worker.request(filepath = filepaths.pop())
 
         # Retrieve results
-        for _ in range(to_collect):
+        for _ in range(n_this_batch):
             entry = worker.wait_get()
             entry.release()
 
@@ -83,7 +80,7 @@ def load_async(filepaths: List[str], batch_size: int, max_file_size: int, n_work
     processes = []
     for i in range(n_workers):
         process = mp.Process(target=load_async_worker_loop, args=(
-            filepaths[i * files_per_loader : (i + 1) * files_per_loader],
+            filepaths[i * files_per_loader : (i + 1) * files_per_loader].copy(),
             batch_size,
             loader.get_worker_context(id=i)
         ))
