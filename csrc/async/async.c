@@ -97,6 +97,8 @@ fifo_pop(entry_t **head, pthread_spinlock_t *lock)
 bool
 async_try_request(wstate_t *state, char *path)
 {
+    printf("request received for %s\n", path);
+
     /* Get a free entry. Return false if none available. */
     entry_t *e = fifo_pop(&state->free, &state->free_lock);
     if (e == NULL) {
@@ -107,6 +109,8 @@ async_try_request(wstate_t *state, char *path)
     /* Configure the entry and move it into the ready list. */
     strncpy(e->path, path, MAX_PATH_LEN + 1);
     fifo_push(&state->ready, &state->ready_lock, e);
+
+    printf("request completed for %s\n", path);
 
     return true;
 }
