@@ -344,7 +344,7 @@ async_init(lstate_t *loader,
     size_t entry_n = 0;
     for (size_t i = 0; i < n_workers; i++) {
         printf("worker # = %lu/%lu\n", i, n_workers);
-        wstate_t *state = &loader->states[i];
+        wstate_t *state = loader->states + i * sizeof(wstate_t);
 
         state->capacity = queue_depth;
 
@@ -352,7 +352,7 @@ async_init(lstate_t *loader,
         state->queue = (entry_t *) (entry_start + entry_n * sizeof(entry_t));
         for (size_t j = 0; j < queue_depth; j++) {
             printf("depth = %lu/%lu\n", j, queue_depth);
-            entry_t *e = &state->queue[j];
+            entry_t *e = state->queue + j * sizeof(entry_t);
 
             /* Data needs to be block-aligned. */
             e->data = data_start + entry_n * max_file_size;
