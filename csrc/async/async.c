@@ -306,6 +306,7 @@ async_init(lstate_t *loader,
     if ((loader->states = mmap_alloc(total_size)) == NULL) {
         return -ENOMEM;
     }
+    printf("loader->states occupies %p to %p\n", loader->states, loader->states + total_size);
 
     printf("A\n");
 
@@ -346,6 +347,7 @@ async_init(lstate_t *loader,
         printf("worker # = %lu/%lu\n", i, n_workers);
         wstate_t *state = loader->states + i * sizeof(wstate_t);
         printf("1\n");
+        printf("state = %p\n", state);
 
         state->capacity = queue_depth;
 
