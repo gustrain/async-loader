@@ -91,8 +91,9 @@ def main():
     if len(sys.argv) < 2:
         print("Please provide the filepath of a directory to load from.")
         return
-    if (len(sys.argv) < 3):
+    if len(sys.argv) < 3:
         print("Please provide the desired file extension to be loaded.")
+        return
     
     filepath = sys.argv[1]
     extension = sys.argv[2]
