@@ -101,6 +101,7 @@ async_try_request(wstate_t *state, char *path)
 
     /* Get a free entry. Return false if none available. */
     entry_t *e = fifo_pop(&state->free, &state->free_lock);
+    printf("AAAA\n");
     if (e == NULL) {
         printf("the list was empty...\n");
         fflush(stdout);
@@ -108,9 +109,11 @@ async_try_request(wstate_t *state, char *path)
         fprintf(stderr, "free list is empty.\n");
         return false;
     }
+    printf("BBBB\n");
 
     /* Configure the entry and move it into the ready list. */
     strncpy(e->path, path, MAX_PATH_LEN + 1);
+    printf("CCCC\n");
     fifo_push(&state->ready, &state->ready_lock, e);
 
     printf("request completed for %s\n", path);
