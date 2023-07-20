@@ -101,7 +101,7 @@ def load_async(filepaths: List[str], batch_size: int, max_file_size: int, n_work
 
     return end - begin
 
-def verify_worker_loop(filepaths: List[str], batch_size: int, worker: al.Worker):
+def verify_worker_loop(filepaths: List[str], batch_size: int, worker: al.Worker, reference_data):
     # Read everything, one batch at a time.
     while filepaths:
         # Submit requests
@@ -115,8 +115,11 @@ def verify_worker_loop(filepaths: List[str], batch_size: int, worker: al.Worker)
             entry = worker.wait_get()
             filepath = entry.get_filepath()
             data = entry.get_data()
-            entry.release()
 
+            if (data != reference_data[filepath]):
+                print("Filedata mismatch for {}:\n\tasyncloader: {}...\n\treference:   {}...", filepath, data[:16], reference_data[filepath][:16])
+
+            entry.release()
 
 def verify_integrity(filepaths: List[str], batch_size: int, max_file_size: int, n_workers: int):
     # Read everything, and store the data
@@ -131,7 +134,7 @@ def verify_integrity(filepaths: List[str], batch_size: int, max_file_size: int, 
                        n_workers=n_workers,
                        min_dispatch_n=-1)
     loader_process = mp.Process(target=loader.become_loader)
-    worker_process =  mp.Process(target=verify_worker_loop, args=(filepaths, batch_size, loader.get_worker_context(id=0)))
+    worker_process =  mp.Process(target=verify_worker_loop, args=(filepaths, batch_size, loader.get_worker_context(id=0), data))
 
     loader_process.start()
     worker_process.start()
@@ -168,6 +171,8 @@ def main():
             print("AsyncLoader ({} workers, {} batch size): {:.04}s".format(n_workers, batch_size, time_async))
     
     # Check integrity...
+    print("\nChecking integrity with 1 worker/32 batch size...")
+    verify_integrity(filepaths, 32, max_size, 1)
 
 
 if __name__ == "__main__":
