@@ -132,15 +132,6 @@ async_try_get(wstate_t *state)
 void
 async_release(entry_t *e)
 {
-    /* Close the file used. */
-    printf("Closing %d\n", e->fd);
-    close(e->fd);
-
-    /* Reset state. */
-    e->size = 0;
-    e->path[0] = '\0';
-    e->fd = -1;
-
     /* Insert into the free list. */
     fifo_push(&e->worker->free, &e->worker->free_lock, e);
 }
@@ -260,6 +251,7 @@ async_responder_loop(void *arg)
            entries with completed IO. */
         entry_t *e = io_uring_cqe_get_data(cqe);
         io_uring_cqe_seen(&ld->ring, cqe);
+        close(e->fd);
         fifo_push(&e->worker->completed, &e->worker->completed_lock, e);
     }
 
