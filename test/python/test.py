@@ -120,7 +120,7 @@ def main():
     print("Max size: {}\nFilepaths: {}".format(max_size, len(filepaths)))
 
     # Get normal loading time
-    os.system("./clear_cache.sh")
+    os.system("sudo ./clear_cache.sh")
     time_normal = load_normal(filepaths)
     print("Normal: {:.04}s.".format(time_normal))
 
@@ -129,7 +129,7 @@ def main():
     batch_configs = [8, 16, 32, 64]
     for n_workers in worker_configs:
         for batch_size in batch_configs:
-            os.system("./clear_cache.sh")
+            os.system("sudo ./clear_cache.sh")
             time_async = load_async(filepaths, batch_size, max_size, n_workers)
             print("AsyncLoader ({} workers, {} batch size): {:.04}".format(n_workers, batch_size, time_async))
 
