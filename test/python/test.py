@@ -102,7 +102,7 @@ def main():
 
     # Get normal loading time
     begin_normal = time.time()
-    load_normal(filepath)
+    load_normal(filepaths)
     time_normal = time.time() - begin_normal
     print("Normal: {:.04}s.".format(time_normal))
 
@@ -110,7 +110,7 @@ def main():
     worker_configs = [1]
     for n_workers in worker_configs:
         begin_async = time.time()
-        load_async(filepath, n_workers)
+        load_async(filepaths, n_workers)
         time_async = time.time() - begin_async
         print("AsyncLoader ({} workers): {:.04}".format(n_workers, time_async))
 
