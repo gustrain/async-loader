@@ -88,7 +88,7 @@ def load_async(filepaths: List[str], max_file_size: int, n_workers: int):
 
 def main():
 
-    if len(sys.argv < 2):
+    if len(sys.argv) < 2:
         print("Please provide the filepath of a directory to load from.")
         return
     
