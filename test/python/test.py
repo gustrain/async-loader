@@ -47,21 +47,28 @@ def load_normal(filepaths: List[str]):
     return end - begin
 
 # Load all files in FILEPATHS using an AsyncLoader worker context.
-def load_async_worker_loop(filepaths: List[str], worker: al.Worker):
-    # Submit all requests
-    for filepath in filepaths:
-        worker.request(filepath = filepath)
+def load_async_worker_loop(filepaths: List[str], batch_size: int, worker: al.Worker):
+    to_collect = 0
 
-    # Read all images
-    for _ in range(len(filepaths)):
-        entry = worker.wait_get()
-        entry.release()
+    # Read everything, one batch at a time.
+    while filepaths:
+        # Submit requests
+        for _ in range(batch_size):
+            worker.request(filepath = filepaths.pop())
+            to_collect += 1
+
+        # Retrieve results
+        for _ in range(to_collect):
+            entry = worker.wait_get()
+            entry.release()
+
+        to_collect = 0
 
 # Load all files in FILEPATHS using AsyncLoader with N_WORKERS worker threads.
-def load_async(filepaths: List[str], max_file_size: int, n_workers: int):
+def load_async(filepaths: List[str], batch_size: int, max_file_size: int, n_workers: int):
     n_files = len(filepaths)
     files_per_loader = int(math.ceil(n_files / n_workers))
-    loader = al.Loader(queue_depth=files_per_loader,
+    loader = al.Loader(queue_depth=batch_size,
                        max_file_size=max_file_size,
                        n_workers=n_workers,
                        min_dispatch_n=-1)
@@ -74,6 +81,7 @@ def load_async(filepaths: List[str], max_file_size: int, n_workers: int):
     for i in range(n_workers):
         process = mp.Process(target=load_async_worker_loop, args=(
             filepaths[i * files_per_loader : (i + 1) * files_per_loader],
+            batch_size,
             loader.get_worker_context(id=i)
         ))
         processes.append(process)
@@ -117,9 +125,11 @@ def main():
 
     # Get async loading time(s)
     worker_configs = [1, 2, 4, 8]
+    batch_configs = [8, 16, 32, 64]
     for n_workers in worker_configs:
-        time_async = load_async(filepaths, max_size, n_workers)
-        print("AsyncLoader ({} workers): {:.04}".format(n_workers, time_async))
+        for batch_size in batch_configs:
+            time_async = load_async(filepaths, batch_size, max_size, n_workers)
+            print("AsyncLoader ({} workers, {} batch size): {:.04}".format(n_workers, batch_size, time_async))
 
 if __name__ == "__main__":
     main()
