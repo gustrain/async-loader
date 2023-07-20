@@ -345,11 +345,15 @@ async_init(lstate_t *loader,
     for (size_t i = 0; i < n_workers; i++) {
         printf("worker # = %lu/%lu\n", i, n_workers);
         wstate_t *state = loader->states + i * sizeof(wstate_t);
+        printf("1\n");
 
         state->capacity = queue_depth;
 
+        printf("2\n");
+
         /* Assign memory for queues and file data. */
         state->queue = (entry_t *) (entry_start + entry_n * sizeof(entry_t));
+        printf("3\n");
         for (size_t j = 0; j < queue_depth; j++) {
             printf("depth = %lu/%lu\n", j, queue_depth);
             entry_t *e = state->queue + j * sizeof(entry_t);
