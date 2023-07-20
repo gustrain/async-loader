@@ -111,7 +111,12 @@ Entry_release(Worker *self, PyObject *args, PyObject *kwds)
 
 /* Entry methods array. */
 static PyMethodDef Entry_methods[] = {
-   {"release", (PyCFunction) Entry_release, METH_NOARGS, "Release (and discard) this entry."},
+   {
+      "release",
+      (PyCFunction) Entry_release,
+      METH_NOARGS,
+      "Release (and discard) this entry."
+   },
    {NULL}
 };
 
@@ -224,9 +229,24 @@ Worker_wait_get(Worker *self, PyObject *args, PyObject *kwds)
 
 /* Worker methods array. */
 static PyMethodDef Worker_methods[] = {
-   {"request", (PyCFunction) Worker_request, METH_VARARGS, "Request that a file be loaded."},
-   {"try_get", (PyCFunction) Worker_try_get, METH_NOARGS, "Try to get a file, if one has been loaded."},
-   {"wait_get", (PyCFunction) Worker_wait_get, METH_NOARGS, "Block until a file has been loaded."},
+   {
+      "request",
+      (PyCFunction) Worker_request,
+      METH_VARARGS | METH_KEYWORDS,
+      "Request that a file be loaded."
+   },
+   {
+      "try_get",
+      (PyCFunction) Worker_try_get,
+      METH_NOARGS,
+      "Try to get a file, if one has been loaded."
+   },
+   {
+      "wait_get",
+      (PyCFunction) Worker_wait_get,
+      METH_NOARGS,
+      "Block until a file has been loaded."
+   },
    {NULL}
 };
 
@@ -390,9 +410,24 @@ Loader_get_worker_context(Loader *self, PyObject *args, PyObject *kwds)
 
 /* Loader methods array. */
 static PyMethodDef Loader_methods[] = {
-   {"become_loader", (PyCFunction) Loader_become_loader, METH_NOARGS, "Become the loader process."},
-   {"spawn_loader", (PyCFunction) Loader_spawn_loader, METH_NOARGS, "Fork and spawn a loader process as a child."},
-   {"get_worker_context", (PyCFunction) Loader_get_worker_context, METH_VARARGS, "Get context for specified worker."},
+   {
+      "become_loader",
+      (PyCFunction) Loader_become_loader,
+      METH_NOARGS,
+      "Become the loader process."
+   },
+   {
+      "spawn_loader",
+      (PyCFunction) Loader_spawn_loader,
+      METH_NOARGS,
+      "Fork and spawn a loader process as a child."
+   },
+   {
+      "get_worker_context",
+      (PyCFunction) Loader_get_worker_context,
+      METH_VARARGS | METH_KEYWORDS,
+      "Get context for specified worker."
+   },
    {NULL}
 };
 

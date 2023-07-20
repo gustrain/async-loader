@@ -46,7 +46,7 @@ def load_normal(filepaths: List[str]):
 def load_async_worker_loop(filepaths: List[str], worker: al.Worker):
     # Submit all requests
     for filepath in filepaths:
-        worker.request(filepath)
+        worker.request(filepath = filepath)
 
     # Read all images
     for _ in range(len(filepaths)):
@@ -70,7 +70,7 @@ def load_async(filepaths: List[str], max_file_size: int, n_workers: int):
     for i in range(n_workers):
         process = mp.Process(target=load_async_worker_loop, args=(
             filepaths[i * files_per_loader : (i + 1) * files_per_loader],
-            loader.get_worker_context(i)
+            loader.get_worker_context(id=i)
         ))
         processes.append(process)
 
