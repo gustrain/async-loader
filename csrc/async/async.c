@@ -123,8 +123,9 @@ async_try_get(wstate_t *state)
        read is racy, but the only goal is to prevent hogging the lock when the
        list is empty. */
     if (state->completed != NULL) {
-        return fifo_pop(&state->completed, &state->completed_lock);
+        entry_t *e = fifo_pop(&state->completed, &state->completed_lock);
         printf("COMPLETED -> SERVED | %s\n", e->path);
+        return e;
     }
     
     return NULL;
@@ -271,8 +272,11 @@ async_start(lstate_t *loader)
 {
     /* Spawn the reader. */
     pthread_t reader;
-    int status = pthread_create(&reader, NULL, async_reader_loop, loader);
-    assert(status == 0);
+    int status = thread_create(&reader, NULL, async_reader_loop, loader);
+    if (status < 0) {
+        fprintf(stderr, "failed to created reader thread; %s\n", strerror(-status));
+        assert(false);
+    }
 
     /* Become the responder. */
     async_responder_loop(loader);
