@@ -137,7 +137,6 @@ async_try_get(wstate_t *state)
     if (state->completed != NULL) {
         entry_t *e = fifo_pop(&state->completed, &state->completed_lock);
         LOG_STATE_CHANGE("COMPLETED -> SERVED", e);
-        printf("First 8 bytes")
         return e;
     }
     
