@@ -106,11 +106,17 @@ def load_async(filepaths: List[str], batch_size: int, max_file_size: int, n_work
     return end - begin
 
 def verify_worker_loop(filepaths: List[str], batch_size: int, worker: al.Worker, reference_data):
+    print("Worker start.")
+
     match_count = 0
     mismatch_count = 0
+    batch_id = 0
 
     # Read everything, one batch at a time.
     while filepaths:
+        print("\nBatch {}:".format(batch_id))
+        batch_id += 1
+
         # Submit requests
         n_this_batch = min(batch_size, len(filepaths))
         for _ in range(n_this_batch):
@@ -131,7 +137,7 @@ def verify_worker_loop(filepaths: List[str], batch_size: int, worker: al.Worker,
 
             entry.release()
     
-    print("Integrity worker done. {} matches, {} mismatches".format(match_count, mismatch_count))
+    print("Worker end. {} matches, {} mismatches".format(match_count, mismatch_count))
 
 def verify_integrity(filepaths: List[str], batch_size: int, max_file_size: int, n_workers: int):
     # Read everything, and store the data
@@ -168,23 +174,23 @@ def main():
     max_size = ((max([os.path.getsize(path) for path in filepaths]) // (1024 * 4)) + 1) * 1024 * 4
     print("Max size: {}\nFilepaths: {}".format(max_size, len(filepaths)))
 
-    # Get normal loading time
-    os.system("sudo ./clear_cache.sh")
-    time_normal = load_normal(filepaths.copy())
-    print("Normal: {:.04}s.".format(time_normal))
+    # # Get normal loading time
+    # os.system("sudo ./clear_cache.sh")
+    # time_normal = load_normal(filepaths.copy())
+    # print("Normal: {:.04}s.".format(time_normal))
 
-    # Get async loading time(s)
-    worker_configs = [1]
-    batch_configs = [1]
-    for n_workers in worker_configs:
-        for batch_size in batch_configs:
-            os.system("sudo ./clear_cache.sh")
-            time_async = load_async(filepaths.copy(), batch_size, max_size, n_workers)
-            print("AsyncLoader ({} workers, {} batch size): {:.04}s".format(n_workers, batch_size, time_async))
+    # # Get async loading time(s)
+    # worker_configs = [1]
+    # batch_configs = [1]
+    # for n_workers in worker_configs:
+    #     for batch_size in batch_configs:
+    #         os.system("sudo ./clear_cache.sh")
+    #         time_async = load_async(filepaths.copy(), batch_size, max_size, n_workers)
+    #         print("AsyncLoader ({} workers, {} batch size): {:.04}s".format(n_workers, batch_size, time_async))
     
     # Check integrity...
     print("\nChecking integrity with 1 worker/32 batch size...")
-    verify_integrity(filepaths.copy(), 32, max_size, 1)
+    verify_integrity(filepaths.copy(), 1, max_size, 1)
 
 
 if __name__ == "__main__":
