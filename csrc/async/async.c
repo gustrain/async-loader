@@ -40,7 +40,7 @@
 #include <time.h>
 
 #define LOG_STATE_CHANGE(label, entry) \
-    printf("%22s | %90s | %16p | %ld\n", label, entry->path, entry, getticks() % 100000000)
+    printf("%22s | %90s | %16p | %10ld\n", label, entry->path, entry, getticks() % 100000000)
 
 static __inline__ int64_t getticks(void)
 {
@@ -137,6 +137,7 @@ async_try_get(wstate_t *state)
     if (state->completed != NULL) {
         entry_t *e = fifo_pop(&state->completed, &state->completed_lock);
         LOG_STATE_CHANGE("COMPLETED -> SERVED", e);
+        printf("First 8 bytes")
         return e;
     }
     
@@ -368,8 +369,8 @@ async_init(lstate_t *loader,
             e->n_vecs = 1;
             e->iovecs = (struct iovec *) (iovec_start + entry_n * queue_depth *
                                           e->n_vecs * sizeof(struct iovec));
-            e->iovecs[1].iov_base = e->data;
-            e->iovecs[1].iov_len = max_file_size;
+            e->iovecs[0].iov_base = e->data;
+            e->iovecs[0].iov_len = max_file_size;
 
             /* Configure entry. */
             e->max_size = max_file_size;
