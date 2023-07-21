@@ -44,11 +44,11 @@
 
 static __inline__ int64_t getticks(void)
 {
-     unsigned a, d;
-     asm("cpuid");
-     asm volatile("rdtsc" : "=a" (a), "=d" (d));
+    unsigned a, d;
+    asm("cpuid");
+    asm volatile("rdtsc" : "=a" (a), "=d" (d));
 
-     return (((int64_t)a) | (((int64_t)d) << 32));
+    return (((int64_t)a) | (((int64_t)d) << 32));
 }
 
 /* Insert ELEM into a doubly linked list, maintaining FIFO order. */
