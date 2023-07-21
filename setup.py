@@ -13,14 +13,15 @@ module_asyncloader = Extension(
     sources = [
         'csrc/asyncmodule/asyncmodule.c',
         'csrc/async/async.c',
-        'csrc/utils/alloc.c'
+        'csrc/utils/alloc.c',
     ],
     extra_link_args = [
         '-lpthread',
-        '-luring'
+        '-luring',
     ],
     extra_compile_args = [
-        '-g'
+        '-g',
+        '-fsanitize=address',
     ],
 )
 
