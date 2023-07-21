@@ -127,7 +127,7 @@ Entry_release(Worker *self, PyObject *args, PyObject *kwds)
    Py_DECREF(self);
    printf("CCC\n");
 
-   return PyLong_FromLong(0)
+   return PyLong_FromLong(0);
 }
 
 /* Entry methods array. */
