@@ -109,6 +109,8 @@ fifo_pop(entry_t **head, pthread_spinlock_t *lock)
 bool
 async_try_request(wstate_t *state, char *path)
 {
+    printf("REQUEST!\n");
+
     /* Get a free entry. Return false if none available. */
     entry_t *e = fifo_pop(&state->free, &state->free_lock);
     if (e == NULL) {
@@ -131,6 +133,8 @@ async_try_request(wstate_t *state, char *path)
 entry_t *
 async_try_get(wstate_t *state)
 {
+    printf("TRY GET!\n");
+
     /* Try to get an entry from the completed list. Return NULL if empty. This
        read is racy, but the only goal is to prevent hogging the lock when the
        list is empty. */
