@@ -260,7 +260,7 @@ async_responder_loop(void *arg)
         io_uring_cqe_seen(&ld->ring, cqe);
         close(e->fd);
         fifo_push(&e->worker->completed, &e->worker->completed_lock, e);
-        printf("%22s | %s\n", "IO_URING -> COMPLETED", e->path);
+        printf("%22s | %s (%p)\n", "IO_URING -> COMPLETED", e->path, e);
     }
 
     return NULL;
