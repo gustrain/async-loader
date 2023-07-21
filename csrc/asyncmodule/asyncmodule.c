@@ -127,7 +127,7 @@ Entry_release(Worker *self, PyObject *args, PyObject *kwds)
    Py_DECREF(self);
    printf("CCC\n");
 
-   return Py_None;
+   return PyLong_FromLong(0)
 }
 
 /* Entry methods array. */
@@ -396,7 +396,7 @@ Loader_become_loader(Loader *self, PyObject *args, PyObject *kwds)
    /* Start the loader. */
    async_start(self->loader);
 
-   return Py_None;
+   return PyLong_FromLong(0);
 }
 
 /* Loader method to spawn a loader process. */
@@ -411,7 +411,7 @@ Loader_spawn_loader(Loader *self, PyObject *args, PyObject *kwds)
       assert(false);
    }
 
-   return Py_None;
+   return PyLong_FromLong(0);
 }
 
 /* Loader method to get the context for the worker with the given ID. */
