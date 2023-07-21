@@ -37,7 +37,22 @@
 #include <sys/syscall.h>
 #include <liburing.h>
 #include <string.h>
+#include <time.h>
 
+#define LOG_STATE_CHANGE(label, entry)                                                                                 \
+    char buf[512];                                                                                                     \
+    get_time(&buf, 512);                                                                                               \
+    printf("%22s | %90s | %16p | %s\n", "FREE -> READY", entry->path, entry, buf)
+
+/* Debug, get time. */
+get_time(char *buf, size_t size) {
+    time_t rawtime;
+    struct tm * timeinfo;
+
+    time(&rawtime);
+    timeinfo = localtime (&rawtime);
+    snprintf(buf, size, "Current local time and date: %s", asctime(timeinfo));
+}
 
 /* Insert ELEM into a doubly linked list, maintaining FIFO order. */
 static void
@@ -108,7 +123,7 @@ async_try_request(wstate_t *state, char *path)
     strncpy(e->path, path, MAX_PATH_LEN);
     fifo_push(&state->ready, &state->ready_lock, e);
 
-    printf("%22s | %s\n", "FREE -> READY", e->path);
+    LOG_STATE_CHANGE("FREE -> READY", e);
 
     return true;
 }
@@ -124,7 +139,7 @@ async_try_get(wstate_t *state)
        list is empty. */
     if (state->completed != NULL) {
         entry_t *e = fifo_pop(&state->completed, &state->completed_lock);
-        printf("%22s | %s (%p)\n", "COMPLETED -> SERVED", e->path, e);
+        LOG_STATE_CHANGE("COMPLETED -> SERVED", e);
         return e;
     }
     
@@ -139,7 +154,7 @@ async_release(entry_t *e)
     /* Insert into the free list. */
     fifo_push(&e->worker->free, &e->worker->free_lock, e);
 
-    printf("%22s | %s\n", "SERVED -> FREE", e->path);
+    LOG_STATE_CHANGE("SERVED -> FREE", e);
 }
 
 
@@ -227,10 +242,10 @@ async_reader_loop(void *arg)
             /* What to do on failure? */
             fprintf(stderr, "reader failed to issue IO; %s; %s.\n", e->path, strerror(-status));
             fifo_push(&st->ready, &st->ready_lock, e);
-            printf("%22s | %s\n", "READY -> READY", e->path);
+            LOG_STATE_CHANGE("READY -> READY", e);
             continue;
         };
-        printf("%22s | %s\n", "READY -> IO_URING", e->path);
+        LOG_STATE_CHANGE("READY -> IO_URING", e);
     }
 
     return NULL;
@@ -260,7 +275,7 @@ async_responder_loop(void *arg)
         io_uring_cqe_seen(&ld->ring, cqe);
         close(e->fd);
         fifo_push(&e->worker->completed, &e->worker->completed_lock, e);
-        printf("%22s | %s (%p)\n", "IO_URING -> COMPLETED", e->path, e);
+        LOG_STATE_CHANGE("IO_URING -> COMPLETED", e);
     }
 
     return NULL;
