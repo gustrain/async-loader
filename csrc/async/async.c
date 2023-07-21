@@ -256,6 +256,8 @@ async_reader_loop(void *arg)
     return NULL;
 }
 
+static lstate_t *ld_global;
+
 /* Loop for responder thread. */
 static void *
 async_responder_loop(void *arg)
@@ -264,6 +266,8 @@ async_responder_loop(void *arg)
 
     struct io_uring_cqe *cqe;
     while (true) {
+        assert(ld == ld_global);
+
         /* Remove an entry from the completion queue. */
         DEBUG_LOG("1\n");
         io_uring_submit(&ld->ring);
@@ -309,6 +313,7 @@ async_start(lstate_t *loader)
     }
 
     /* Become the responder. */
+    ld_global = loader;
     async_responder_loop(loader);
 
     /* Never reached. */
