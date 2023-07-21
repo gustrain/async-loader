@@ -19,6 +19,9 @@ module_asyncloader = Extension(
         '-lpthread',
         '-luring'
     ],
+    extra_compile_args = [
+        '-g'
+    ],
 )
 
 setup(name = 'Async File Loader',
