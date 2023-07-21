@@ -249,11 +249,17 @@ static PyObject *
 Worker_wait_get(Worker *self, PyObject *args, PyObject *kwds)
 {
    /* Spin until we get an entry. */
-   Entry *entry;
-   while ((entry = (Entry *) Worker_try_get(self, NULL, NULL)) == (Entry *) Py_None) {}
+   entry_t *e;
+   while ((e = async_try_get(self->worker)) == NULL) {}
+
+   /* Allocate a wrapper. */
+   Entry *entry = (Entry *) Entry_new(&PythonEntryType, NULL, NULL);
    if (entry == NULL) {
       return NULL;
    }
+   
+   /* Insert the entry_t into the wrapper. */
+   entry->entry = e;
 
    return (PyObject *) entry;
 }
