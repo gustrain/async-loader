@@ -39,14 +39,8 @@
 #include <string.h>
 #include <time.h>
 
-
-#define DEBUG 1
-#define DEBUG_LOG(fmt, ...) \
-    do { if (DEBUG) fprintf(stderr, "(pid %d) [%8s:%-5d] " fmt, getpid(), __FILE__, \
-                            __LINE__, ## __VA_ARGS__); } while (0)
-
 #define LOG_STATE_CHANGE(label, entry) \
-    DEBUG_LOG("%22s | %90s | %16p | %10ld\n", label, entry->path, entry, getticks() % 100000000)
+    printf("%22s | %90s | %16p | %10ld\n", label, entry->path, entry, getticks() % 100000000)
 
 static __inline__ int64_t getticks(void)
 {
