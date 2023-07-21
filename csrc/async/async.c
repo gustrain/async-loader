@@ -38,7 +38,6 @@
 #include <liburing.h>
 #include <string.h>
 #include <time.h>
-#include <intrin.h>
 
 #define LOG_STATE_CHANGE(label, entry) \
     printf("%22s | %90s | %16p | %ld\n", "FREE -> READY", entry->path, entry, getticks())
