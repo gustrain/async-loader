@@ -226,15 +226,20 @@ async_reader_loop(void *arg)
     size_t i = 0;
     entry_t *e = NULL;
     while (true) {
+        printf("A\n");
         wstate_t *st = &ld->states[i++ % ld->n_states];
+        printf("B\n");
 
         /* Take an item from the ready list. Racy check to avoid hogging lock. */
         if ((e = fifo_pop(&st->ready, &st->ready_lock)) == NULL) {
+            printf("C\n");
             continue;
         }
+        printf("D\n");
 
         /* Issue the IO for this entry's filepath. */
         int status = async_perform_io(ld, e);
+        printf("E\n");
         if (status < 0) {
             /* What to do on failure? */
             fprintf(stderr, "reader failed to issue IO; %s; %s.\n", e->path, strerror(-status));
