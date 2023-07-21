@@ -159,8 +159,8 @@ def verify_integrity(filepaths: List[str], batch_size: int, max_file_size: int, 
 
     loader_process.start()
     worker_process.start()
-    while True:
-        pass
+    worker_process.join()
+    loader_process.kill()
 
 def main():
 
