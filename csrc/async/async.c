@@ -108,6 +108,8 @@ async_try_request(wstate_t *state, char *path)
     strncpy(e->path, path, MAX_PATH_LEN + 1);
     fifo_push(&state->ready, &state->ready_lock, e);
 
+    printf("FREE -> READY | %s\n", e->path);
+
     return true;
 }
 
@@ -122,6 +124,7 @@ async_try_get(wstate_t *state)
        list is empty. */
     if (state->completed != NULL) {
         return fifo_pop(&state->completed, &state->completed_lock);
+        printf("COMPLETED -> SERVED | %s\n", e->path);
     }
     
     return NULL;
@@ -134,6 +137,8 @@ async_release(entry_t *e)
 {
     /* Insert into the free list. */
     fifo_push(&e->worker->free, &e->worker->free_lock, e);
+
+    printf("SERVED -> FREE | %s\n", e->path);
 }
 
 
@@ -221,8 +226,10 @@ async_reader_loop(void *arg)
             /* What to do on failure? */
             fprintf(stderr, "reader failed to issue IO; %s; %s.\n", e->path, strerror(-status));
             fifo_push(&st->ready, &st->ready_lock, e);
+            printf("READY -> READY | %s\n", e->path);
             continue;
         };
+        printf("READY -> IO_URING | %s\n", e->path);
     }
 
     return NULL;
@@ -252,6 +259,7 @@ async_responder_loop(void *arg)
         io_uring_cqe_seen(&ld->ring, cqe);
         close(e->fd);
         fifo_push(&e->worker->completed, &e->worker->completed_lock, e);
+        printf("IO_URING -> COMPLETED | %s\n", e->path);
     }
 
     return NULL;
