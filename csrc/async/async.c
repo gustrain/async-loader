@@ -40,7 +40,7 @@
 #include <time.h>
 
 #define LOG_STATE_CHANGE(label, entry) \
-    DEBUG_LOG("%22s | %90s | %16p | %lu bytes at %p (of max %lu bytes) | %10ld\n", label, entry->path, entry, entry->size, entry->iovec->iov_base, entry->iovec->iov_len,  getticks() % 100000000)
+    DEBUG_LOG("%22s | %90s | %16p | %lu bytes at %p (of max %lu bytes) | %10ld\n", label, entry->path, entry, entry->size, entry->iovecs->iov_base, entry->iovecs->iov_len,  getticks() % 100000000)
 
 static __inline__ int64_t getticks(void)
 {
