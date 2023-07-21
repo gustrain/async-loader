@@ -222,7 +222,7 @@ static void *
 async_reader_loop(void *arg)
 {
     lstate_t *ld = (lstate_t *) arg;
-    DEBUG_LOG("Loader: %p\n", arg);
+    DEBUG_LOG("Loader @ %p: n_states = %lu, total_size = %lu\n", ld, ld->n_states, ld->total_size);
 
     /* Loop through the outer states array round-robin style, issuing one IO per
        visit to each worker's queue, if that queue has a valid request. */
