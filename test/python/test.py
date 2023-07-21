@@ -113,6 +113,7 @@ def verify_worker_loop(filepaths: List[str], batch_size: int, worker: al.Worker,
     batch_id = 0
 
     # Read everything, one batch at a time.
+    print(len(filepaths))
     while filepaths:
         print("\nBatch {}:".format(batch_id))
         batch_id += 1
@@ -135,7 +136,9 @@ def verify_worker_loop(filepaths: List[str], batch_size: int, worker: al.Worker,
             else:
                 match_count += 1
 
+            print("before release")
             entry.release()
+            print("after release")
     
     print("Worker end. {} matches, {} mismatches".format(match_count, mismatch_count))
 
