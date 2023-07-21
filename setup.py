@@ -18,11 +18,10 @@ module_asyncloader = Extension(
     extra_link_args = [
         '-lpthread',
         '-luring',
-        '-lasan'
     ],
     extra_compile_args = [
         '-g',
-        '-fsanitize=address',
+        '-static-libasan'
     ],
 )
 
