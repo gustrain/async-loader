@@ -48,11 +48,8 @@
 static void
 get_time(char *buf, size_t size) {
     time_t rawtime;
-    struct tm * timeinfo;
-
     time(&rawtime);
-    timeinfo = localtime (&rawtime);
-    snprintf(buf, size, "Current local time and date: %s", asctime(timeinfo));
+    snprintf(buf, size, "%ld", rawtime);
 }
 
 /* Insert ELEM into a doubly linked list, maintaining FIFO order. */
