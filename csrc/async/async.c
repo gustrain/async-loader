@@ -430,7 +430,5 @@ async_init(lstate_t *loader,
         return status;
     }
 
-    DEBUG_LOG("init done\n");
-
     return 0;
 }
