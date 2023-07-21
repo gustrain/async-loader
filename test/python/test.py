@@ -134,6 +134,7 @@ def verify_worker_loop(filepaths: List[str], batch_size: int, worker: al.Worker,
                 mismatch_count += 1
                 print("Filedata mismatch for {}: ({} match, {} mismatch)\n\tasyncloader: {}...\n\treference:   {}...".format(filepath, match_count, mismatch_count, data[:16], reference_data[filepath][:16]))
             else:
+                print("Filedata match for {}".format(filepath))
                 match_count += 1
 
             print("before release")
