@@ -110,7 +110,7 @@ Entry_get_data(Worker *self, PyObject *args, PyObject *kwds)
    return PyBytes_FromStringAndSize((char *) entry->entry->data, entry->entry->size);
 }
 
-/* Release an entry. Allows the entry wrapper to be GC'd. */
+/* Release an entry. */
 static PyObject *
 Entry_release(Worker *self, PyObject *args, PyObject *kwds)
 {
@@ -124,8 +124,6 @@ Entry_release(Worker *self, PyObject *args, PyObject *kwds)
    printf("AAA\n");
    async_release(entry->entry);
    printf("BBB\n");
-   Py_DECREF(self);
-   printf("CCC\n");
 
    return PyLong_FromLong(0);
 }
