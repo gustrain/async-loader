@@ -38,18 +38,18 @@
 #include <liburing.h>
 #include <string.h>
 #include <time.h>
+#include <intrin.h>
 
-#define LOG_STATE_CHANGE(label, entry)                                                                                 \
-    char buf[512];                                                                                                     \
-    get_time(buf, 512);                                                                                               \
-    printf("%22s | %90s | %16p | %s\n", "FREE -> READY", entry->path, entry, buf)
+#define LOG_STATE_CHANGE(label, entry) \
+    printf("%22s | %90s | %16p | %ld\n", "FREE -> READY", entry->path, entry, getticks())
 
-/* Debug, get time. */
-static void
-get_time(char *buf, size_t size) {
-    time_t rawtime;
-    time(&rawtime);
-    snprintf(buf, size, "%ld", rawtime);
+static __inline__ int64_t getticks(void)
+{
+     unsigned a, d;
+     asm("cpuid");
+     asm volatile("rdtsc" : "=a" (a), "=d" (d));
+
+     return (((ticks)a) | (((ticks)d) << 32));
 }
 
 /* Insert ELEM into a doubly linked list, maintaining FIFO order. */
