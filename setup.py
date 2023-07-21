@@ -18,6 +18,7 @@ module_asyncloader = Extension(
     extra_link_args = [
         '-lpthread',
         '-luring',
+        '-fsanitize=address',
     ],
     extra_compile_args = [
         '-g',
