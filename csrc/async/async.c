@@ -226,7 +226,7 @@ async_reader_loop(void *arg)
     size_t i = 0;
     entry_t *e = NULL;
     while (true) {
-        printf("A\n");
+        printf("A (%lu) (%lu) (%lu)\n", i, i % ld->n_states, ld->n_states);
         wstate_t *st = &ld->states[i++ % ld->n_states];
         printf("B\n");
 
