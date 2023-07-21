@@ -40,7 +40,7 @@
 #include <time.h>
 
 #define LOG_STATE_CHANGE(label, entry) \
-    printf("%22s | %90s | %16p | %10ld\n", label, entry->path, entry, getticks() % 100000000)
+    DEBUG_LOG("%22s | %90s | %16p | %10ld\n", label, entry->path, entry, getticks() % 100000000)
 
 static __inline__ int64_t getticks(void)
 {
