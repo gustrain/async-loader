@@ -223,7 +223,7 @@ async_reader_loop(void *arg)
 {
     lstate_t *ld = (lstate_t *) arg;
 
-    memset(ld - 64, 1024, 0);
+    memset(ld - 64, 0, 1024);
 
     DEBUG_LOG("Loader @ %p: n_states = %lu, total_size = %lu\n", ld, ld->n_states, ld->total_size);
 
