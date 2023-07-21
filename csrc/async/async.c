@@ -105,7 +105,7 @@ async_try_request(wstate_t *state, char *path)
     }
 
     /* Configure the entry and move it into the ready list. */
-    strncpy(e->path, path, MAX_PATH_LEN + 1);
+    strncpy(e->path, path, MAX_PATH_LEN);
     fifo_push(&state->ready, &state->ready_lock, e);
 
     printf("FREE -> READY | %s\n", e->path);
@@ -272,7 +272,7 @@ async_start(lstate_t *loader)
 {
     /* Spawn the reader. */
     pthread_t reader;
-    int status = thread_create(&reader, NULL, async_reader_loop, loader);
+    int status = pthread_create(&reader, NULL, async_reader_loop, loader);
     if (status < 0) {
         fprintf(stderr, "failed to created reader thread; %s\n", strerror(-status));
         assert(false);
