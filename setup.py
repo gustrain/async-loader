@@ -23,6 +23,9 @@ module_asyncloader = Extension(
         '-g',
         '-static-libasan'
     ],
+    undef_macros = [
+        "NDEBUG"
+    ],
 )
 
 setup(name = 'Async File Loader',
