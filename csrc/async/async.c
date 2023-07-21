@@ -262,7 +262,9 @@ async_responder_loop(void *arg)
     struct io_uring_cqe *cqe;
     while (true) {
         /* Remove an entry from the completion queue. */
+        printf("1\n");
         int status = io_uring_wait_cqe(&ld->ring, &cqe);
+        printf("2\n");
         if (status < 0) {
             fprintf(stderr, "io_uring_wait_cqe failed; %s.\n", strerror(-status));
             continue;
@@ -270,13 +272,18 @@ async_responder_loop(void *arg)
             fprintf(stderr, "asynchronous read failed; %s.\n", strerror(-cqe->res));
             continue;
         }
+        printf("3\n");
 
         /* Get the entry associated with the IO, and place it into the list for
            entries with completed IO. */
         entry_t *e = io_uring_cqe_get_data(cqe);
+        printf("4\n");
         io_uring_cqe_seen(&ld->ring, cqe);
+        printf("5\n");
         close(e->fd);
+        printf("6\n");
         fifo_push(&e->worker->completed, &e->worker->completed_lock, e);
+        printf("7\n");
         LOG_STATE_CHANGE("IO_URING -> COMPLETED", e);
     }
 
