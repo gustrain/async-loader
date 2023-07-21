@@ -39,8 +39,14 @@
 #include <string.h>
 #include <time.h>
 
+
+#define DEBUG 1
+#define DEBUG_LOG(fmt, ...) \
+    do { if (DEBUG) fprintf(stderr, "(pid %d) [%8s:%-5d] " fmt, getpid(), __FILE__, \
+                            __LINE__, ## __VA_ARGS__); } while (0)
+
 #define LOG_STATE_CHANGE(label, entry) \
-    printf("%22s | %90s | %16p | %10ld\n", label, entry->path, entry, getticks() % 100000000)
+    DEBUG_LOG("%22s | %90s | %16p | %10ld\n", label, entry->path, entry, getticks() % 100000000)
 
 static __inline__ int64_t getticks(void)
 {
@@ -109,7 +115,7 @@ fifo_pop(entry_t **head, pthread_spinlock_t *lock)
 bool
 async_try_request(wstate_t *state, char *path)
 {
-    printf("REQUEST!\n");
+    DEBUG_LOG("REQUEST!\n");
 
     /* Get a free entry. Return false if none available. */
     entry_t *e = fifo_pop(&state->free, &state->free_lock);
@@ -228,20 +234,20 @@ async_reader_loop(void *arg)
     size_t i = 0;
     entry_t *e = NULL;
     while (true) {
-        printf("A (%lu) (%lu) (%lu)\n", i, i % ld->n_states, ld->n_states);
+        DEBUG_LOG("A (%lu) (%lu) (%lu)\n", i, i % ld->n_states, ld->n_states);
         wstate_t *st = &ld->states[i++ % ld->n_states];
-        printf("B\n");
+        DEBUG_LOG("B\n");
 
         /* Take an item from the ready list. Racy check to avoid hogging lock. */
         if ((e = fifo_pop(&st->ready, &st->ready_lock)) == NULL) {
-            printf("C\n");
+            DEBUG_LOG("C\n");
             continue;
         }
-        printf("D\n");
+        DEBUG_LOG("D\n");
 
         /* Issue the IO for this entry's filepath. */
         int status = async_perform_io(ld, e);
-        printf("E\n");
+        DEBUG_LOG("E\n");
         if (status < 0) {
             /* What to do on failure? */
             fprintf(stderr, "reader failed to issue IO; %s; %s.\n", e->path, strerror(-status));
@@ -264,10 +270,10 @@ async_responder_loop(void *arg)
     struct io_uring_cqe *cqe;
     while (true) {
         /* Remove an entry from the completion queue. */
-        printf("1\n");
+        DEBUG_LOG("1\n");
         fflush(stdout);
         int status = io_uring_wait_cqe(&ld->ring, &cqe);
-        printf("2\n");
+        DEBUG_LOG("2\n");
         fflush(stdout);
         if (status < 0) {
             fprintf(stderr, "io_uring_wait_cqe failed; %s.\n", strerror(-status));
@@ -276,27 +282,27 @@ async_responder_loop(void *arg)
             fprintf(stderr, "asynchronous read failed; %s.\n", strerror(-cqe->res));
             continue;
         }
-        printf("3\n");
+        DEBUG_LOG("3\n");
         fflush(stdout);
 
         /* Get the entry associated with the IO, and place it into the list for
            entries with completed IO. */
         entry_t *e = io_uring_cqe_get_data(cqe);
-        printf("4\n");
+        DEBUG_LOG("4\n");
         fflush(stdout);
         io_uring_cqe_seen(&ld->ring, cqe);
-        printf("5\n");
+        DEBUG_LOG("5\n");
         fflush(stdout);
         close(e->fd);
-        printf("6\n");
+        DEBUG_LOG("6\n");
         fflush(stdout);
         fifo_push(&e->worker->completed, &e->worker->completed_lock, e);
-        printf("7\n");
+        DEBUG_LOG("7\n");
         fflush(stdout);
         LOG_STATE_CHANGE("IO_URING -> COMPLETED", e);
     }
 
-    printf("Returned???\n");
+    DEBUG_LOG("Returned???\n");
 
     return NULL;
 }
