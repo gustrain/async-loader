@@ -45,7 +45,7 @@
     printf("%22s | %90s | %16p | %s\n", "FREE -> READY", entry->path, entry, buf)
 
 /* Debug, get time. */
-get_time(char *buf, size_t size) {
+get_time(char buf[512], size_t size) {
     time_t rawtime;
     struct tm * timeinfo;
 
