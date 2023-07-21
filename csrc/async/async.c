@@ -124,7 +124,7 @@ async_try_get(wstate_t *state)
        list is empty. */
     if (state->completed != NULL) {
         entry_t *e = fifo_pop(&state->completed, &state->completed_lock);
-        printf("%22s | %s\n", "COMPLETED -> SERVED", e->path);
+        printf("%22s | %s (%p)\n", "COMPLETED -> SERVED", e->path, e);
         return e;
     }
     
