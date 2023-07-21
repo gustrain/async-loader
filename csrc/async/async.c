@@ -133,8 +133,6 @@ async_try_request(wstate_t *state, char *path)
 entry_t *
 async_try_get(wstate_t *state)
 {
-    printf("TRY GET!\n");
-
     /* Try to get an entry from the completed list. Return NULL if empty. This
        read is racy, but the only goal is to prevent hogging the lock when the
        list is empty. */
@@ -297,6 +295,8 @@ async_responder_loop(void *arg)
         fflush(stdout);
         LOG_STATE_CHANGE("IO_URING -> COMPLETED", e);
     }
+
+    printf("Returned???\n");
 
     return NULL;
 }
