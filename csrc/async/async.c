@@ -454,6 +454,7 @@ async_init(lstate_t *loader,
        submissions (thus interactions with liburing) are done only by this
        reader/responder process. */
     int status = io_uring_queue_init(n_workers * queue_depth, &loader->ring, 0);
+    printf("Status = %d\n", status);
     if (status < 0) {
         fprintf(stderr, "io_uring_queue_init failed; %s\n", strerror(-status));
         mmap_free(loader->states, total_size);
