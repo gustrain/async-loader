@@ -335,8 +335,8 @@ async_start(lstate_t *loader)
         assert(false);
     }
 
-    while (true) {}
-    assert(false);
+    // while (true) {}
+    // assert(false);
 
     /* Become the responder. */
     async_responder_loop(loader);
