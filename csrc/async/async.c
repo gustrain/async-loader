@@ -58,6 +58,9 @@ fifo_sanity_check(entry_t **head, const char *prefix)
     entry_t *cur = *head;
     do {
         DEBUG_LOG("[%s] entry @ %p\n", prefix, cur);
+        if (cur == NULL) {
+            return;
+        }
     } while (((cur = cur->next) != NULL));
 }
 
