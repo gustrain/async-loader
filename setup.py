@@ -21,8 +21,6 @@ module_asyncloader = Extension(
     ],
     extra_compile_args = [
         '-g',
-        '-static-libasan',
-        '-fstack-protector-all',
     ],
     undef_macros = [
         "NDEBUG"
