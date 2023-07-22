@@ -61,7 +61,7 @@ fifo_sanity_check(entry_t **head, const char *prefix)
         if (cur == NULL) {
             return;
         }
-    } while (((cur = cur->next) != NULL));
+    } while (((cur = cur->next) != NULL && cur != *head));
 }
 
 /* Insert ELEM into a doubly linked list, maintaining FIFO order. */
