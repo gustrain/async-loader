@@ -53,11 +53,11 @@ static __inline__ int64_t getticks(void)
 
 /* Assumes lock held when called. */
 static void
-fifo_sanity_check(entry_t **head, const char *prefix)
+fifo_sanity_check(entry_t **head, const char *prefix, const char *more_prefix)
 {
     entry_t *cur = *head;
     do {
-        DEBUG_LOG("[%s] entry @ %p\n", prefix, cur);
+        DEBUG_LOG("[%s %s] entry @ %p\n", prefix, more_prefix, cur);
         if (cur == NULL) {
             return;
         }
@@ -70,11 +70,12 @@ fifo_push(entry_t **head, pthread_spinlock_t *lock, entry_t *elem)
 {
     /* Handle case of empty list. */
     pthread_spin_lock(lock);
+    fifo_sanity_check(head, __func__, "start");
     if (*head == NULL) {
         *head = elem;
         elem->prev = elem;
         elem->next = elem;
-        fifo_sanity_check(head, __func__);
+        fifo_sanity_check(head, __func__, "end (was empty)");
         pthread_spin_unlock(lock);
         return;
     }
@@ -87,7 +88,7 @@ fifo_push(entry_t **head, pthread_spinlock_t *lock, entry_t *elem)
     (*head)->prev->next = elem;
     (*head)->prev = elem;
 
-    fifo_sanity_check(head, __func__);
+    fifo_sanity_check(head, __func__, "end");
     pthread_spin_unlock(lock);
 }
 
@@ -96,9 +97,10 @@ static entry_t *
 fifo_pop(entry_t **head, pthread_spinlock_t *lock)
 {
     pthread_spin_lock(lock);
+    fifo_sanity_check(head, __func__, "start");
     entry_t *out = *head;
     if (out == NULL) {
-        fifo_sanity_check(head, __func__);
+        fifo_sanity_check(head, __func__, "end (was empty)");
         pthread_spin_unlock(lock);
         return NULL;
     }
@@ -111,7 +113,7 @@ fifo_pop(entry_t **head, pthread_spinlock_t *lock)
     if (*head == out) {
         *head = NULL;
     }
-    fifo_sanity_check(head, __func__);
+    fifo_sanity_check(head, __func__, "end");
     pthread_spin_unlock(lock);
 
     return out;
