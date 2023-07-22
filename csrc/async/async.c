@@ -230,7 +230,7 @@ async_perform_io(lstate_t *ld, entry_t *e)
     /* Create and submit the uring AIO request. */
     struct io_uring_sqe *sqe = io_uring_get_sqe(&ld->ring);
     io_uring_prep_readv(sqe, e->fd, e->iovecs, e->n_vecs, 0);
-    io_uring_sqe_set_data(sqe, e);  /* Associate request with this entry. */
+    // io_uring_sqe_set_data(sqe, e);  /* Associate request with this entry. */
     // io_uring_submit(&ld->ring);
 
     return 0;
