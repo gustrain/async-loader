@@ -306,6 +306,8 @@ async_responder_loop(void *arg)
 void
 async_start(lstate_t *loader)
 {
+    ld_global = loader;
+    
     /* Spawn the reader. */
     pthread_t reader;
     int status = pthread_create(&reader, NULL, async_reader_loop, loader);
@@ -315,7 +317,6 @@ async_start(lstate_t *loader)
     }
 
     /* Become the responder. */
-    ld_global = loader;
     async_responder_loop(loader);
 
     /* Never reached. */
