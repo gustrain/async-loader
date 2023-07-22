@@ -217,6 +217,8 @@ async_perform_io(lstate_t *ld, entry_t *e)
     return 0;
 }
 
+static lstate_t *ld_global;
+
 /* Loop for reader thread. */
 static void *
 async_reader_loop(void *arg)
@@ -257,8 +259,6 @@ async_reader_loop(void *arg)
 
     return NULL;
 }
-
-static lstate_t *ld_global;
 
 /* Loop for responder thread. */
 static void *
