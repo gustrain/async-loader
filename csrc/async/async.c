@@ -453,7 +453,7 @@ async_init(lstate_t *loader,
        memory because while worker interact with the shared queues, the IO
        submissions (thus interactions with liburing) are done only by this
        reader/responder process. */
-    print("Queue depth: %lu", n_workers * queue_depth);
+    print("Queue depth: %lu\n", n_workers * queue_depth);
     int status = io_uring_queue_init((uint32_t) (n_workers * queue_depth), &loader->ring, 0);
     printf("Status = %d\n", status);
     if (status < 0) {
