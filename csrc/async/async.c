@@ -53,7 +53,7 @@ static __inline__ int64_t getticks(void)
 
 /* Assumes lock held when called. */
 static void
-fifo_sanity_check(const entry_t **head, const char *prefix)
+fifo_sanity_check(entry_t **head, const char *prefix)
 {
     entry_t *cur = *head;
     do {
