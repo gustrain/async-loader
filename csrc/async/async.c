@@ -55,14 +55,17 @@ static __inline__ int64_t getticks(void)
 static void
 fifo_sanity_check(entry_t **head, const char *prefix, const char *more_prefix)
 {
-    entry_t *cur = *head;
-    do {
-        DEBUG_LOG("[%s %s] entry @ %p\n", prefix, more_prefix, cur);
-        if (cur == NULL) {
-            return;
-        }
-    } while (((cur = cur->next) != NULL && cur != *head));
+    return;
 }
+//
+//     entry_t *cur = *head;
+//     do {
+//         DEBUG_LOG("[%s %s] entry @ %p\n", prefix, more_prefix, cur);
+//         if (cur == NULL) {
+//             return;
+//         }
+//     } while (((cur = cur->next) != NULL && cur != *head));
+// }
 
 /* Insert ELEM into a doubly linked list, maintaining FIFO order. */
 static void
