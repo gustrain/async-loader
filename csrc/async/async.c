@@ -194,7 +194,7 @@ async_perform_io(lstate_t *ld, entry_t *e)
 
     /* Create and submit the uring AIO request. */
     struct io_uring_sqe *sqe = io_uring_get_sqe(&ld->ring);
-    fprintf(stderr, "iov_base = %p, data = %p\n", e->iovecs[0].iov_base, e->data);
+    fprintf(stderr, "iovec = %p, iov_base = %p, data = %p\n", e->iovecs, e->iovecs[0].iov_base, e->data);
     // assert(e->iovecs[0].iov_base == e->data);
     io_uring_prep_readv(sqe, e->fd, e->iovecs, e->n_vecs, 0);
     io_uring_sqe_set_data(sqe, e);  /* Associate request with this entry. */
