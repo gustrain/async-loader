@@ -365,7 +365,7 @@ async_init(lstate_t *loader,
         entry_start, (uint8_t *) entry_start + entry_bytes,
         iovec_start, (uint8_t *) iovec_start + iovec_bytes,
         data_start
-    )
+    );
 
     /* Assign all of the correct locations to each state/queue. */
     size_t entry_n = 0;
@@ -375,7 +375,7 @@ async_init(lstate_t *loader,
         state->capacity = queue_depth;
 
         /* Assign memory for queues and file data. */
-        state->queue = &(entry_t *) entry_start) [entry_n];
+        state->queue = &entry_start[entry_n];
         for (size_t j = 0; j < queue_depth; j++) {
             entry_t *e = &state->queue[j];
 
@@ -385,8 +385,7 @@ async_init(lstate_t *loader,
 
             /* Configure the iovec for asynchronous readv. */
             e->n_vecs = 1;
-            e->iovecs = (struct iovec *) (iovec_start + entry_n * queue_depth *
-                                          e->n_vecs * sizeof(struct iovec));
+            e->iovecs = &iovec_start[entry_n * queue_depth * e->n_vecs];
             e->iovecs[0].iov_base = e->data;
             e->iovecs[0].iov_len = max_file_size;
 
