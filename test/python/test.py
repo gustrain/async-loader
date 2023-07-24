@@ -164,7 +164,8 @@ def main():
     
     filepath = sys.argv[1]
     extension = sys.argv[2]
-    filepaths = np.random.shuffle(get_all_filepaths(filepath, extension))
+    filepaths = get_all_filepaths(filepath, extension)
+    np.random.shuffle(filepaths)
     max_size = ((max([os.path.getsize(path) for path in filepaths]) // (1024 * 4)) + 1) * 1024 * 4
     print("Max size: {}\nFilepaths: {}".format(max_size, len(filepaths)))
 
