@@ -98,8 +98,6 @@ fifo_pop(entry_t **head, pthread_spinlock_t *lock)
 bool
 async_try_request(wstate_t *state, char *path)
 {
-    DEBUG_LOG("REQUEST!\n");
-
     /* Get a free entry. Return false if none available. */
     entry_t *e = fifo_pop(&state->free, &state->free_lock);
     if (e == NULL) {
@@ -210,28 +208,21 @@ async_reader_loop(void *arg)
 {
     lstate_t *ld = (lstate_t *) arg;
 
-    DEBUG_LOG("Loader @ %p: n_states = %lu, total_size = %lu\n", ld, ld->n_states, ld->total_size);
-
     /* Loop through the outer states array round-robin style, issuing one IO per
        visit to each worker's queue, if that queue has a valid request. */
     size_t i = 0;
     entry_t *e = NULL;
     while (true) {
         assert(ld == ld_global);
-        DEBUG_LOG("A (%lu) (%lu) (%lu)\n", i, i % ld->n_states, ld->n_states);
         wstate_t *st = &ld->states[i++ % ld->n_states];
-        DEBUG_LOG("B\n");
 
         /* Take an item from the ready list. Racy check to avoid hogging lock. */
         if ((e = fifo_pop(&st->ready, &st->ready_lock)) == NULL) {
-            DEBUG_LOG("C\n");
             continue;
         }
-        DEBUG_LOG("D\n");
 
         /* Issue the IO for this entry's filepath. */
         int status = async_perform_io(ld, e);
-        DEBUG_LOG("E\n");
         if (status < 0) {
             /* What to do on failure? */
             fprintf(stderr, "reader failed to issue IO; %s; %s.\n", e->path, strerror(-status));
@@ -277,8 +268,6 @@ async_responder_loop(void *arg)
         close(e->fd);
         fifo_push(&e->worker->completed, &e->worker->completed_lock, e);
     }
-
-    DEBUG_LOG("Returned???\n");
 
     return NULL;
 }
