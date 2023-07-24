@@ -137,9 +137,7 @@ def verify_worker_loop(filepaths: List[str], batch_size: int, worker: al.Worker,
                 print("Filedata match for {}".format(filepath))
                 match_count += 1
 
-            print("before release")
             entry.release()
-            print("after release")
     
     print("Worker end. {} matches, {} mismatches".format(match_count, mismatch_count))
 

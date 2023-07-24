@@ -121,9 +121,7 @@ Entry_release(Worker *self, PyObject *args, PyObject *kwds)
       PyErr_SetString(PyExc_Exception, "cannot release entry; empty wrapper");
       return NULL;
    }
-   printf("AAA\n");
    async_release(entry->entry);
-   printf("BBB\n");
 
    return PyLong_FromLong(0);
 }

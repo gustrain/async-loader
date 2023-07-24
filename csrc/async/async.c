@@ -39,33 +39,6 @@
 #include <string.h>
 #include <time.h>
 
-#define LOG_STATE_CHANGE(label, entry) \
-    DEBUG_LOG("%22s | %90s | %16p | %lu bytes at %p (of max %lu bytes) | %10ld\n", label, entry->path, entry, entry->size, entry->iovecs->iov_base, entry->iovecs->iov_len,  getticks() % 100000000)
-
-static __inline__ int64_t getticks(void)
-{
-    unsigned a, d;
-    asm("cpuid");
-    asm volatile("rdtsc" : "=a" (a), "=d" (d));
-
-    return (((int64_t)a) | (((int64_t)d) << 32));
-}
-
-/* Assumes lock held when called. */
-static void
-fifo_sanity_check(entry_t **head, const char *prefix, const char *more_prefix)
-{
-    return;
-}
-//
-//     entry_t *cur = *head;
-//     do {
-//         DEBUG_LOG("[%s %s] entry @ %p\n", prefix, more_prefix, cur);
-//         if (cur == NULL) {
-//             return;
-//         }
-//     } while (((cur = cur->next) != NULL && cur != *head));
-// }
 
 /* Insert ELEM into a doubly linked list, maintaining FIFO order. */
 static void
@@ -456,9 +429,7 @@ async_init(lstate_t *loader,
        memory because while worker interact with the shared queues, the IO
        submissions (thus interactions with liburing) are done only by this
        reader/responder process. */
-    printf("Queue depth: %lu\n", n_workers * queue_depth);
     int status = io_uring_queue_init((unsigned int) (n_workers * queue_depth), &loader->ring, 0);
-    printf("Status = %d\n", status);
     if (status < 0) {
         fprintf(stderr, "io_uring_queue_init failed; %s\n", strerror(-status));
         mmap_free(loader->states, total_size);
