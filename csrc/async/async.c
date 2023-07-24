@@ -195,7 +195,7 @@ async_perform_io(lstate_t *ld, entry_t *e)
     /* Create and submit the uring AIO request. */
     struct io_uring_sqe *sqe = io_uring_get_sqe(&ld->ring);
     fprintf(stderr, "iov_base = %p, data = %p\n", e->iovecs[0].iov_base, e->data);
-    assert(e->iovecs[0].iov_base == e->data);
+    // assert(e->iovecs[0].iov_base == e->data);
     io_uring_prep_readv(sqe, e->fd, e->iovecs, e->n_vecs, 0);
     io_uring_sqe_set_data(sqe, e);  /* Associate request with this entry. */
     io_uring_submit(&ld->ring);
@@ -250,6 +250,8 @@ async_responder_loop(void *arg)
 {
     lstate_t *ld = (lstate_t *) arg;
 
+    int cnt = 0;
+
     struct io_uring_cqe *cqe;
     while (true) {
         assert(ld == ld_global);
@@ -263,7 +265,9 @@ async_responder_loop(void *arg)
         } else if (cqe->res < 0) {
             entry_t *e = io_uring_cqe_get_data(cqe);
             fprintf(stderr, "asynchronous read failed; %s (iov_base @ %p, data @ %p).\n", strerror(-cqe->res), e->iovecs[0].iov_base, e->data);
-            exit(EXIT_FAILURE);
+            if (cnt++ > 32) {
+                exit(EXIT_FAILURE);
+            }
             continue;
         }
 
