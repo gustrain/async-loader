@@ -107,7 +107,6 @@ def verify_worker_loop(filepaths: List[str], batch_size: int, worker: al.Worker,
     batch_id = 0
 
     # Read everything, one batch at a time.
-    print(len(filepaths))
     while filepaths:
         batch_id += 1
 
