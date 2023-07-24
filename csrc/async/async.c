@@ -46,12 +46,10 @@ fifo_push(entry_t **head, pthread_spinlock_t *lock, entry_t *elem)
 {
     /* Handle case of empty list. */
     pthread_spin_lock(lock);
-    fifo_sanity_check(head, __func__, "start");
     if (*head == NULL) {
         *head = elem;
         elem->prev = elem;
         elem->next = elem;
-        fifo_sanity_check(head, __func__, "end (was empty)");
         pthread_spin_unlock(lock);
         return;
     }
@@ -64,7 +62,6 @@ fifo_push(entry_t **head, pthread_spinlock_t *lock, entry_t *elem)
     (*head)->prev->next = elem;
     (*head)->prev = elem;
 
-    fifo_sanity_check(head, __func__, "end");
     pthread_spin_unlock(lock);
 }
 
@@ -73,10 +70,8 @@ static entry_t *
 fifo_pop(entry_t **head, pthread_spinlock_t *lock)
 {
     pthread_spin_lock(lock);
-    fifo_sanity_check(head, __func__, "start");
     entry_t *out = *head;
     if (out == NULL) {
-        fifo_sanity_check(head, __func__, "end (was empty)");
         pthread_spin_unlock(lock);
         return NULL;
     }
@@ -89,7 +84,6 @@ fifo_pop(entry_t **head, pthread_spinlock_t *lock)
     if (*head == out) {
         *head = NULL;
     }
-    fifo_sanity_check(head, __func__, "end");
     pthread_spin_unlock(lock);
 
     return out;
@@ -117,8 +111,6 @@ async_try_request(wstate_t *state, char *path)
     strncpy(e->path, path, MAX_PATH_LEN);
     fifo_push(&state->ready, &state->ready_lock, e);
 
-    LOG_STATE_CHANGE("FREE -> READY", e);
-
     return true;
 }
 
@@ -133,7 +125,6 @@ async_try_get(wstate_t *state)
        list is empty. */
     if (state->completed != NULL) {
         entry_t *e = fifo_pop(&state->completed, &state->completed_lock);
-        LOG_STATE_CHANGE("COMPLETED -> SERVED", e);
         return e;
     }
     
@@ -147,8 +138,6 @@ async_release(entry_t *e)
 {
     /* Insert into the free list. */
     fifo_push(&e->worker->free, &e->worker->free_lock, e);
-
-    LOG_STATE_CHANGE("SERVED -> FREE", e);
 }
 
 
@@ -246,10 +235,8 @@ async_reader_loop(void *arg)
             /* What to do on failure? */
             fprintf(stderr, "reader failed to issue IO; %s; %s.\n", e->path, strerror(-status));
             fifo_push(&st->ready, &st->ready_lock, e);
-            LOG_STATE_CHANGE("READY -> READY", e);
             continue;
-        };
-        LOG_STATE_CHANGE("READY -> IO_URING", e);
+        }
     }
 
     return NULL;
@@ -266,10 +253,8 @@ async_responder_loop(void *arg)
         assert(ld == ld_global);
 
         /* Remove an entry from the completion queue. */
-        DEBUG_LOG("1\n");
         io_uring_submit(&ld->ring);
         int status = io_uring_wait_cqe(&ld->ring, &cqe);
-        DEBUG_LOG("2\n");
         if (status < 0) {
             fprintf(stderr, "io_uring_wait_cqe failed; %s.\n", strerror(-status));
             continue;
@@ -277,19 +262,13 @@ async_responder_loop(void *arg)
             fprintf(stderr, "asynchronous read failed; %s.\n", strerror(-cqe->res));
             continue;
         }
-        DEBUG_LOG("3\n");
 
         /* Get the entry associated with the IO, and place it into the list for
            entries with completed IO. */
         entry_t *e = io_uring_cqe_get_data(cqe);
-        DEBUG_LOG("4\n");
         io_uring_cqe_seen(&ld->ring, cqe);
-        DEBUG_LOG("5\n");
         close(e->fd);
-        DEBUG_LOG("6\n");
         fifo_push(&e->worker->completed, &e->worker->completed_lock, e);
-        DEBUG_LOG("7\n");
-        LOG_STATE_CHANGE("IO_URING -> COMPLETED", e);
     }
 
     DEBUG_LOG("Returned???\n");
@@ -310,9 +289,6 @@ async_start(lstate_t *loader)
         fprintf(stderr, "failed to created reader thread; %s\n", strerror(-status));
         assert(false);
     }
-
-    // while (true) {}
-    // assert(false);
 
     /* Become the responder. */
     async_responder_loop(loader);
