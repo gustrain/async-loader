@@ -385,7 +385,7 @@ async_init(lstate_t *loader,
 
             /* Configure the iovec for asynchronous readv. */
             e->n_vecs = 1;
-            e->iovecs = &iovec_start[entry_n * queue_depth * e->n_vecs];
+            e->iovecs = &iovec_start[entry_n * e->n_vecs];
             e->iovecs[0].iov_base = e->data;
             e->iovecs[0].iov_len = max_file_size;
 
