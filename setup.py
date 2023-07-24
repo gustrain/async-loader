@@ -8,6 +8,25 @@ VERSION = '{}.{}.{}'.format(MAJOR, MINOR, MICRO)
 with open('README.md', 'r') as f:
     long_description = f.read()
 
+module_asyncloader = Extension(
+    'AsyncLoader',
+    sources = [
+        'csrc/asyncmodule/asyncmodule.c',
+        'csrc/async/async.c',
+        'csrc/utils/alloc.c',
+    ],
+    extra_link_args = [
+        '-lpthread',
+        '-luring',
+    ],
+    extra_compile_args = [
+        '-g',
+    ],
+    undef_macros = [
+        "NDEBUG"
+    ],
+)
+
 setup(name = 'Async File Loader',
       version = VERSION,
       description = 'Python asynchronous file loader module',
@@ -17,8 +36,4 @@ setup(name = 'Async File Loader',
       author = 'Gus Waldspurger',
       author_email = 'gus@waldspurger.com',
       license = 'MIT',
-      ext_modules = [
-            Extension('AsyncLoader', sources = ['csrc/asyncmodule/asyncmodule.c'
-                                                'csrc/async/async.c',
-                                                'csrc/utils/alloc.c'])
-      ])
+      ext_modules = [module_asyncloader])

@@ -37,6 +37,7 @@
 #include <sys/syscall.h>
 #include <liburing.h>
 #include <string.h>
+#include <time.h>
 
 
 /* Insert ELEM into a doubly linked list, maintaining FIFO order. */
@@ -105,7 +106,7 @@ async_try_request(wstate_t *state, char *path)
     }
 
     /* Configure the entry and move it into the ready list. */
-    strncpy(e->path, path, MAX_PATH_LEN + 1);
+    strncpy(e->path, path, MAX_PATH_LEN);
     fifo_push(&state->ready, &state->ready_lock, e);
 
     return true;
@@ -121,7 +122,8 @@ async_try_get(wstate_t *state)
        read is racy, but the only goal is to prevent hogging the lock when the
        list is empty. */
     if (state->completed != NULL) {
-        return fifo_pop(&state->completed, &state->completed_lock);
+        entry_t *e = fifo_pop(&state->completed, &state->completed_lock);
+        return e;
     }
     
     return NULL;
@@ -132,14 +134,6 @@ async_try_get(wstate_t *state)
 void
 async_release(entry_t *e)
 {
-    /* Close the file used. */
-    close(e->fd);
-
-    /* Reset state. */
-    e->size = 0;
-    e->path[0] = '\0';
-    e->fd = -1;
-
     /* Insert into the free list. */
     fifo_push(&e->worker->free, &e->worker->free_lock, e);
 }
@@ -198,12 +192,15 @@ async_perform_io(lstate_t *ld, entry_t *e)
 
     /* Create and submit the uring AIO request. */
     struct io_uring_sqe *sqe = io_uring_get_sqe(&ld->ring);
+    assert(e->iovecs[0].iov_base == e->data);
     io_uring_prep_readv(sqe, e->fd, e->iovecs, e->n_vecs, 0);
     io_uring_sqe_set_data(sqe, e);  /* Associate request with this entry. */
     io_uring_submit(&ld->ring);
 
     return 0;
 }
+
+static lstate_t *ld_global;
 
 /* Loop for reader thread. */
 static void *
@@ -216,6 +213,7 @@ async_reader_loop(void *arg)
     size_t i = 0;
     entry_t *e = NULL;
     while (true) {
+        assert(ld == ld_global);
         wstate_t *st = &ld->states[i++ % ld->n_states];
 
         /* Take an item from the ready list. Racy check to avoid hogging lock. */
@@ -228,10 +226,9 @@ async_reader_loop(void *arg)
         if (status < 0) {
             /* What to do on failure? */
             fprintf(stderr, "reader failed to issue IO; %s; %s.\n", e->path, strerror(-status));
-            assert(false);
             fifo_push(&st->ready, &st->ready_lock, e);
             continue;
-        };
+        }
     }
 
     return NULL;
@@ -243,15 +240,24 @@ async_responder_loop(void *arg)
 {
     lstate_t *ld = (lstate_t *) arg;
 
+    int cnt = 0;
+
     struct io_uring_cqe *cqe;
     while (true) {
+        assert(ld == ld_global);
+
         /* Remove an entry from the completion queue. */
+        io_uring_submit(&ld->ring);
         int status = io_uring_wait_cqe(&ld->ring, &cqe);
         if (status < 0) {
             fprintf(stderr, "io_uring_wait_cqe failed; %s.\n", strerror(-status));
             continue;
         } else if (cqe->res < 0) {
-            fprintf(stderr, "asynchronous read failed; %s.\n", strerror(-cqe->res));
+            entry_t *e = io_uring_cqe_get_data(cqe);
+            fprintf(stderr, "asynchronous read failed; %s (iov_base @ %p, data @ %p).\n", strerror(-cqe->res), e->iovecs[0].iov_base, e->data);
+            if (cnt++ > 32) {
+                exit(EXIT_FAILURE);
+            }
             continue;
         }
 
@@ -259,6 +265,7 @@ async_responder_loop(void *arg)
            entries with completed IO. */
         entry_t *e = io_uring_cqe_get_data(cqe);
         io_uring_cqe_seen(&ld->ring, cqe);
+        close(e->fd);
         fifo_push(&e->worker->completed, &e->worker->completed_lock, e);
     }
 
@@ -269,10 +276,15 @@ async_responder_loop(void *arg)
 void
 async_start(lstate_t *loader)
 {
+    ld_global = loader;
+
     /* Spawn the reader. */
     pthread_t reader;
     int status = pthread_create(&reader, NULL, async_reader_loop, loader);
-    assert(status == 0);
+    if (status < 0) {
+        fprintf(stderr, "failed to created reader thread; %s\n", strerror(-status));
+        assert(false);
+    }
 
     /* Become the responder. */
     async_responder_loop(loader);
@@ -324,9 +336,9 @@ async_init(lstate_t *loader,
     size_t iovec_bytes = n_queue_entries * sizeof(struct iovec);
 
     /* Addresses of each region. */
-    uint8_t *entry_start = (uint8_t *) loader->states + state_bytes;
-    uint8_t *iovec_start = entry_start + entry_bytes;
-    uint8_t *data_start  = iovec_start + iovec_bytes;
+    entry_t      *entry_start = (entry_t *) ((uint8_t *) loader->states + state_bytes);
+    struct iovec *iovec_start = (struct iovec *) ((uint8_t *) entry_start + entry_bytes);
+    uint8_t      *data_start  = (uint8_t *) iovec_start + iovec_bytes;
 
     /* Ensure that data is block-aligned. */
     data_start += BLOCK_SIZE - (((uint64_t) data_start) % BLOCK_SIZE);
@@ -340,21 +352,19 @@ async_init(lstate_t *loader,
         state->capacity = queue_depth;
 
         /* Assign memory for queues and file data. */
-        state->queue = (entry_t *) (entry_start + entry_n * sizeof(entry_t));
+        state->queue = &entry_start[entry_n];
         for (size_t j = 0; j < queue_depth; j++) {
             entry_t *e = &state->queue[j];
 
-
-            /* Data needs to be block (4k) aligned. */
+            /* Data needs to be block-aligned. */
             e->data = data_start + entry_n * max_file_size;
             assert(((uint64_t) e->data) % BLOCK_SIZE == 0);
 
             /* Configure the iovec for asynchronous readv. */
             e->n_vecs = 1;
-            e->iovecs = (struct iovec *) (iovec_start + entry_n * queue_depth *
-                                          e->n_vecs * sizeof(struct iovec));
-            e->iovecs[1].iov_base = e->data;
-            e->iovecs[1].iov_len = max_file_size;
+            e->iovecs = &iovec_start[entry_n * e->n_vecs];
+            e->iovecs[0].iov_base = e->data;
+            e->iovecs[0].iov_len = max_file_size;
 
             /* Configure entry. */
             e->max_size = max_file_size;
@@ -384,12 +394,13 @@ async_init(lstate_t *loader,
     /* Set the loader's config states. */
     loader->n_states = n_workers;
     loader->dispatch_n = min_dispatch_n;
+    loader->total_size = total_size;
 
     /* Initialize liburing. We don't need to worry about this not using shared
        memory because while worker interact with the shared queues, the IO
        submissions (thus interactions with liburing) are done only by this
        reader/responder process. */
-    int status = io_uring_queue_init(n_workers * queue_depth, &loader->ring, 0);
+    int status = io_uring_queue_init((unsigned int) (n_workers * queue_depth), &loader->ring, 0);
     if (status < 0) {
         fprintf(stderr, "io_uring_queue_init failed; %s\n", strerror(-status));
         mmap_free(loader->states, total_size);

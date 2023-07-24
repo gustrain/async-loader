@@ -28,7 +28,7 @@
 
 #define DEBUG 0
 #define DEBUG_LOG(fmt, ...) \
-    do { if (DEBUG) fprintf(stderr, "[%8s:%-5d] " fmt, __FILE__, \
+    do { if (DEBUG) fprintf(stderr, "(pid %d) [%8s:%-5d] " fmt, getpid(), __FILE__, \
                             __LINE__, ## __VA_ARGS__); } while (0)
 
 #define ALT_DEBUG 0
