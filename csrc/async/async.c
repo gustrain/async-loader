@@ -348,13 +348,24 @@ async_init(lstate_t *loader,
     size_t iovec_bytes = n_queue_entries * sizeof(struct iovec);
 
     /* Addresses of each region. */
-    uint8_t *entry_start = (uint8_t *) loader->states + state_bytes;
-    uint8_t *iovec_start = entry_start + entry_bytes;
-    uint8_t *data_start  = iovec_start + iovec_bytes;
+    entry_t      *entry_start = (entry_t *) ((uint8_t *) loader->states + state_bytes);
+    struct iovec *iovec_start = (struct iovec *) ((uint8_t *) entry_start + entry_bytes);
+    uint8_t      *data_start  = (uint8_t *) iovec_start + iovec_bytes;
 
     /* Ensure that data is block-aligned. */
     data_start += BLOCK_SIZE - (((uint64_t) data_start) % BLOCK_SIZE);
     assert(((uint64_t) data_start) % BLOCK_SIZE == 0);
+
+    fprintf(
+        stderr,
+        "Calculations...\n"
+        "entry_start = %p, entry_end = %p\n"
+        "iovec_start = %p, iovec_end = %p\n"
+        "data_start  = %p\n",
+        entry_start, (uint8_t *) entry_start + entry_bytes,
+        iovec_start, (uint8_t *) iovec_start + iovec_bytes,
+        data_start
+    )
 
     /* Assign all of the correct locations to each state/queue. */
     size_t entry_n = 0;
@@ -364,7 +375,7 @@ async_init(lstate_t *loader,
         state->capacity = queue_depth;
 
         /* Assign memory for queues and file data. */
-        state->queue = (entry_t *) (entry_start + entry_n * sizeof(entry_t));
+        state->queue = &(entry_t *) entry_start) [entry_n];
         for (size_t j = 0; j < queue_depth; j++) {
             entry_t *e = &state->queue[j];
 
