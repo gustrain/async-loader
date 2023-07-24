@@ -247,7 +247,6 @@ async_responder_loop(void *arg)
         assert(ld == ld_global);
 
         /* Remove an entry from the completion queue. */
-        io_uring_submit(&ld->ring);
         int status = io_uring_wait_cqe(&ld->ring, &cqe);
         if (status < 0) {
             fprintf(stderr, "io_uring_wait_cqe failed; %s.\n", strerror(-status));
