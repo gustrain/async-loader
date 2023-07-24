@@ -194,8 +194,7 @@ async_perform_io(lstate_t *ld, entry_t *e)
 
     /* Create and submit the uring AIO request. */
     struct io_uring_sqe *sqe = io_uring_get_sqe(&ld->ring);
-    fprintf(stderr, "iovec = %p, iov_base = %p, data = %p\n", e->iovecs, e->iovecs[0].iov_base, e->data);
-    // assert(e->iovecs[0].iov_base == e->data);
+    assert(e->iovecs[0].iov_base == e->data);
     io_uring_prep_readv(sqe, e->fd, e->iovecs, e->n_vecs, 0);
     io_uring_sqe_set_data(sqe, e);  /* Associate request with this entry. */
     io_uring_submit(&ld->ring);
@@ -355,17 +354,6 @@ async_init(lstate_t *loader,
     /* Ensure that data is block-aligned. */
     data_start += BLOCK_SIZE - (((uint64_t) data_start) % BLOCK_SIZE);
     assert(((uint64_t) data_start) % BLOCK_SIZE == 0);
-
-    fprintf(
-        stderr,
-        "Calculations...\n"
-        "entry_start = %p, entry_end = %p\n"
-        "iovec_start = %p, iovec_end = %p\n"
-        "data_start  = %p\n",
-        entry_start, (uint8_t *) entry_start + entry_bytes,
-        iovec_start, (uint8_t *) iovec_start + iovec_bytes,
-        data_start
-    );
 
     /* Assign all of the correct locations to each state/queue. */
     size_t entry_n = 0;
