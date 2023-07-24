@@ -259,8 +259,9 @@ async_responder_loop(void *arg)
             fprintf(stderr, "io_uring_wait_cqe failed; %s.\n", strerror(-status));
             continue;
         } else if (cqe->res < 0) {
-            fprintf(stderr, "asynchronous read failed; %s (buf @ %p).\n", strerror(-cqe->res), ((entry_t *) cqe->user_data)->iovecs[0].iov_base);
-            io_uring_cqe_seen(&ld->ring, cqe);
+            entry_t *e = io_uring_cqe_get_data(cqe);
+            fprintf(stderr, "asynchronous read failed; %s (iov_base @ %p, data @ %p).\n", strerror(-cqe->res), e->iovecs[0].iov_base, e->data);
+            exit(EXIT_FAILURE);
             continue;
         }
 
