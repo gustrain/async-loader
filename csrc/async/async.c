@@ -201,7 +201,7 @@ async_perform_io(lstate_t *ld, entry_t *e)
 
     /* Open the file, get and check size. */
     if ((e->fd = open(e->path, O_RDONLY)) < 0) {
-        fprintf("failed to open %s\n", e->path);
+        fprintf(stderr, "failed to open %s\n", e->path);
         return -errno;
     };
 
