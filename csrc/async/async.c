@@ -127,13 +127,14 @@ async_try_get(wstate_t *state)
        list is empty. */
     if (state->completed != NULL) {
         e = fifo_pop(&state->completed, &state->completed_lock);
-    }
+        /* Acquire shm object and mmap it so data may be accessed. */
+        e->shm_wfd = shm_open(e->shm_fp, O_RDWR, 0);
+        assert(e->shm_wfd >= 0);
+        e->shm_wdata = mmap(NULL, e->size, PROT_WRITE, MAP_PRIVATE, e->shm_wfd, 0);
+        assert(e->shm_wdata != NULL);
 
-    /* Acquire shm object and mmap it so data may be accessed. */
-    e->shm_wfd = shm_open(e->shm_fp, O_RDWR, 0);
-    assert(e->shm_wfd >= 0);
-    e->shm_wdata = mmap(NULL, e->size, PROT_WRITE, MAP_PRIVATE, e->shm_wfd, 0);
-    assert(e->shm_wdata != NULL);
+        return e;
+    }
     
     return NULL;
 }
