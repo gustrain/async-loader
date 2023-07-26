@@ -227,6 +227,7 @@ async_perform_io(lstate_t *ld, entry_t *e)
        ASYNC_RELEASE in order to unlink this shm object. */
     e->shm_lfd = shm_open(e->shm_fp, O_RDWR, O_CREAT);
     if (e->shm_lfd < 0) {
+        fprintf(stderr, "failed to shm_open %s\n", e->shm_fp);
         close(e->fd);
         return -errno;
     }
