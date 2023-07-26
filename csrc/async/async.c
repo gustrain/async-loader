@@ -145,8 +145,9 @@ void
 async_release(entry_t *e)
 {
     /* Unlink the shm object, and unmap the worker-side mmap. */
-    assert(shm_unlink(e->shm_fp) == 0);
-    assert(munmap(e->shm_wdata, e->size) == 0);
+    shm_unlink(e->shm_fp);
+    close(e->shm_wfd);
+    munmap(e->shm_wdata, e->size);
 
     /* Insert into the free list. */
     fifo_push(&e->worker->free, &e->worker->free_lock, e);
@@ -193,6 +194,7 @@ async_perform_io(lstate_t *ld, entry_t *e)
     /* Unmap any previous mmap. */
     if (e->shm_lmapped) {
         munmap(e->shm_ldata, e->size);
+        close(e->shm_lfd);
         e->shm_lmapped = false;
     }
 
@@ -235,6 +237,7 @@ async_perform_io(lstate_t *ld, entry_t *e)
     /* Appropriately size the shm object. */
     if (ftruncate(e->shm_lfd, e->size) < 0) {
         shm_unlink(e->shm_fp);
+        close(e->shm_lfd);
         close(e->fd);
         return -errno;
     }
@@ -243,6 +246,7 @@ async_perform_io(lstate_t *ld, entry_t *e)
     e->shm_ldata = mmap(NULL, e->size, PROT_WRITE, MAP_SHARED, e->shm_lfd, 0);
     if (e->shm_ldata == NULL) {
         shm_unlink(e->shm_fp);
+        close(e->shm_lfd);
         close(e->fd);
         return -ENOMEM;
     }
