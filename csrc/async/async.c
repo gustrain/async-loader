@@ -231,7 +231,7 @@ async_perform_io(lstate_t *ld, entry_t *e)
 
     /* Appropriately size the shm object. */
     if (ftruncate(e->shm_lfd, e->size) < 0) {
-        shm_unlink(e->shm_lfd);
+        shm_unlink(e->shm_fp);
         close(e->fd);
         return -errno;
     }
@@ -239,7 +239,7 @@ async_perform_io(lstate_t *ld, entry_t *e)
     /* Create mmap for the shm object. */
     e->shm_ldata = mmap(NULL, e->size, PROT_WRITE, MAP_PRIVATE, e->shm_lfd, 0);
     if (e->shm_ldata == NULL) {
-        shm_unlink(e->shm_lfd);
+        shm_unlink(e->shm_fp);
         close(e->fd);
         return -ENOMEM;
     }
