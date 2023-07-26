@@ -128,9 +128,9 @@ async_try_get(wstate_t *state)
     if (state->completed != NULL) {
         e = fifo_pop(&state->completed, &state->completed_lock);
         /* Acquire shm object and mmap it so data may be accessed. */
-        e->shm_wfd = shm_open(e->shm_fp, O_RDWR, 0);
+        e->shm_wfd = shm_open(e->shm_fp, O_RDWR, S_IRUSR | S_IWUSR);
         assert(e->shm_wfd >= 0);
-        e->shm_wdata = mmap(NULL, e->size, PROT_WRITE, MAP_PRIVATE, e->shm_wfd, S_IRUSR | S_IWUSR);
+        e->shm_wdata = mmap(NULL, e->size, PROT_WRITE, MAP_PRIVATE, e->shm_wfd, 0);
         assert(e->shm_wdata != NULL);
 
         return e;
@@ -225,7 +225,7 @@ async_perform_io(lstate_t *ld, entry_t *e)
 
     /* Allocate shm object. It will be the responsibility of the worker to call
        ASYNC_RELEASE in order to unlink this shm object. */
-    e->shm_lfd = shm_open(e->shm_fp, O_RDWR | O_CREAT,);
+    e->shm_lfd = shm_open(e->shm_fp, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
     if (e->shm_lfd < 0) {
         fprintf(stderr, "failed to shm_open %s\n", e->shm_fp);
         close(e->fd);
