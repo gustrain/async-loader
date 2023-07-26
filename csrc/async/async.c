@@ -133,9 +133,6 @@ async_try_get(wstate_t *state)
         e->shm_wdata = mmap(NULL, e->size, PROT_WRITE, MAP_SHARED, e->shm_wfd, 0);
         assert(e->shm_wdata != NULL);
 
-        /* Try writing... */
-        *e->shm_wdata = 0xabc;
-
         return e;
     }
     
@@ -249,9 +246,11 @@ async_perform_io(lstate_t *ld, entry_t *e)
         close(e->fd);
         return -ENOMEM;
     }
-    *e->shm_ldata = 0xabc;
     e->iovecs[0].iov_base = e->shm_ldata;
     e->shm_lmapped = true;
+
+    /* Try writing. */
+    memset(e->shm_ldata, 0xDD, e->size);
 
     /* Create and submit the uring AIO request. */
     struct io_uring_sqe *sqe = io_uring_get_sqe(&ld->ring);
