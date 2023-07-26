@@ -281,7 +281,7 @@ async_reader_loop(void *arg)
         int status = async_perform_io(ld, e);
         if (status < 0) {
             /* What to do on failure? */
-            fprintf(stderr, "reader failed to issue IO; %s; %s.\n", e->path, strerror(-status));
+            fprintf(stderr, "reader failed to issue IO; %s; %s; %s.\n", e->path, e->shm_fp, strerror(-status));
             fifo_push(&st->ready, &st->ready_lock, e);
             exit(EXIT_FAILURE);
         }
