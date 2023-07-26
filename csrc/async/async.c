@@ -261,8 +261,6 @@ async_perform_io(lstate_t *ld, entry_t *e)
     return 0;
 }
 
-static lstate_t *ld_global;
-
 /* Loop for reader thread. */
 static void *
 async_reader_loop(void *arg)
@@ -274,7 +272,6 @@ async_reader_loop(void *arg)
     size_t i = 0;
     entry_t *e = NULL;
     while (true) {
-        assert(ld == ld_global);
         wstate_t *st = &ld->states[i++ % ld->n_states];
 
         /* Take an item from the ready list. Racy check to avoid hogging lock. */
@@ -288,7 +285,6 @@ async_reader_loop(void *arg)
             /* What to do on failure? */
             fprintf(stderr, "reader failed to issue IO; %s; %s; %s.\n", e->path, e->shm_fp, strerror(-status));
             fifo_push(&st->ready, &st->ready_lock, e);
-            exit(EXIT_FAILURE);
         }
     }
 
@@ -305,8 +301,6 @@ async_responder_loop(void *arg)
 
     struct io_uring_cqe *cqe;
     while (true) {
-        assert(ld == ld_global);
-
         /* Remove an entry from the completion queue. */
         int status = io_uring_wait_cqe(&ld->ring, &cqe);
         if (status < 0) {
@@ -336,8 +330,6 @@ async_responder_loop(void *arg)
 void
 async_start(lstate_t *loader)
 {
-    ld_global = loader;
-
     /* Spawn the reader. */
     pthread_t reader;
     int status = pthread_create(&reader, NULL, async_reader_loop, loader);
