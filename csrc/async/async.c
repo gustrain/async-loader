@@ -389,7 +389,6 @@ async_init(lstate_t *loader,
     */
 
     /* Sizes of each region. */
-    size_t n_queue_entries = n_workers * queue_depth;
     size_t state_bytes = n_workers * sizeof(wstate_t);
 
     /* Addresses of each region. */
