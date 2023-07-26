@@ -255,6 +255,7 @@ async_perform_io(lstate_t *ld, entry_t *e)
     e->shm_lmapped = true;
 
     printf("mmap for %s (%s) gave ldata = %p\n", e->path, e->shm_fp, e->shm_ldata);
+    assert(((size_t) e->iovecs[0].iov_base) % 4096 == 0);
 
     /* Try writing. */
     memset(e->shm_ldata, 0xDD, e->size);
