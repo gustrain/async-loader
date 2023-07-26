@@ -317,7 +317,7 @@ async_responder_loop(void *arg)
             continue;
         } else if (cqe->res < 0) {
             entry_t *e = io_uring_cqe_get_data(cqe);
-            fprintf(stderr, "asynchronous read failed; %s (iov_base @ %p, data @ %p, size = 0x%lx, shm_size = 0x%lx).\n", strerror(-cqe->res), e->iovecs[0].iov_base, e->shm_ldata, e->size; e->shm_size);
+            fprintf(stderr, "asynchronous read failed; %s (iov_base @ %p, data @ %p, size = 0x%lx, shm_size = 0x%lx).\n", strerror(-cqe->res), e->iovecs[0].iov_base, e->shm_ldata, e->size, e->shm_size);
             if (cnt++ > 32) {
                 exit(EXIT_FAILURE);
             }
