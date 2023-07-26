@@ -42,7 +42,7 @@ typedef struct queue_entry {
     struct iovec *iovecs;                   /* Array of iovecs for readv. */
     size_t        n_vecs;                   /* Number of structs in IOVECS. */
     size_t        size;                     /* Size of file data in bytes. */
-    char          shm_fp[MAX_PATH_LEN+1];   /* Name used for shm object. */
+    char          shm_fp[MAX_PATH_LEN+2];   /* Name used for shm object. */
     int           shm_lfd;                  /* File descriptor of shm object for
                                                the loader process. */
     int           shm_wfd;                  /* File descriptor of shm object for

@@ -216,7 +216,7 @@ async_perform_io(lstate_t *ld, entry_t *e)
     e->shm_fp[0] = '/';
     for (int i = 0; i < MAX_PATH_LEN + 1; i++) {
         /* Replace all occurences of '/' with '_'. */
-        e->shm_fp[i] = e->path[i] == '/' ? '_' : e->path[i];
+        e->shm_fp[i + 1] = e->path[i] == '/' ? '_' : e->path[i];
         if (e->path[i] == '\0') {
             break;
         }
