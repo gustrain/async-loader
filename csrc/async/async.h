@@ -35,21 +35,32 @@
 
 /* Queue entry. */
 typedef struct queue_entry {
-    char          path[MAX_PATH_LEN+1]; /* Filepath data was read from. */
-    int           fd;                   /* File descriptor. Belongs to loader.
-                                           Not to be touched by workers. Only
-                                           valid while IO is in-flight. */
-    struct iovec *iovecs;               /* Array of MAX_SIZE / BLOCK_SIZE iovec
-                                           structs used for liburing AIO. */
-    size_t        n_vecs;               /* Number of structs in IOVECS. */
-    uint8_t      *data;                 /* File data. */
-    size_t        size;                 /* Size of file data in bytes. */
-    size_t        max_size;             /* Maximum file data size in bytes. */
+    char          path[MAX_PATH_LEN+1];     /* Filepath data was read from. */
+    int           fd;                       /* File descriptor for file being
+                                               loaded. Belongs to the loader.
+                                               Not to be touched by workers. */
+    struct iovec *iovecs;                   /* Array of iovecs for readv. */
+    size_t        n_vecs;                   /* Number of structs in IOVECS. */
+    size_t        size;                     /* Size of file in bytes. */
+    char          shm_fp[MAX_PATH_LEN+2];   /* Name used for shm object. */
+    int           shm_lfd;                  /* File descriptor of shm object for
+                                               the loader process. */
+    int           shm_wfd;                  /* File descriptor of shm object for
+                                               the worker process.*/
+    uint8_t      *shm_ldata;                /* File data (SIZE bytes) in the shm
+                                               object, accessible by the loader
+                                               process. */
+    uint8_t      *shm_wdata;                /* File data (SIZE bytes) in the shm
+                                               object, accessible by the worker
+                                               process. */
+    bool          shm_lmapped;              /* If set when the entry is accessed
+                                               in the free list, the loader must
+                                               unmap SHM_DATA. */
 
     /* Free/ready link list. */
-    struct worker_state *worker;        /* Worker that owns this queue. */
-    struct queue_entry  *next;          /* Next entry in status list. */
-    struct queue_entry  *prev;          /* Previous entry in status list. */
+    struct worker_state *worker;            /* Worker that owns this queue. */
+    struct queue_entry  *next;              /* Next entry in status list. */
+    struct queue_entry  *prev;              /* Previous entry in status list. */
 } entry_t;
 
 /* Worker state. Input/output queues unique to that worker. */

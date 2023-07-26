@@ -1,5 +1,5 @@
 CC     = gcc
-CFLAGS = -Wall -lpthread -luring -g
+CFLAGS = -Wall -lpthread -luring -lrt -g
 DEPS   = ../../csrc/async/async.h ../../csrc/utils/alloc.h
 OBJ    = test_async.o ../../csrc/async/async.o ../../csrc/utils/alloc.o
 

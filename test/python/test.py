@@ -26,6 +26,7 @@ import os
 import sys
 import time
 import math
+import numpy as np
 import multiprocessing as mp
 import AsyncLoader as al
 from typing import List
@@ -152,6 +153,7 @@ def verify_integrity(filepaths: List[str], batch_size: int, max_file_size: int, 
     loader_process.kill()
 
 def main():
+    np.random.seed(42)
 
     if len(sys.argv) < 2:
         print("Please provide the filepath of a directory to load from.")
@@ -163,6 +165,7 @@ def main():
     filepath = sys.argv[1]
     extension = sys.argv[2]
     filepaths = get_all_filepaths(filepath, extension)
+    np.random.shuffle(filepaths)
     max_size = ((max([os.path.getsize(path) for path in filepaths]) // (1024 * 4)) + 1) * 1024 * 4
     print("Max size: {}\nFilepaths: {}".format(max_size, len(filepaths)))
 

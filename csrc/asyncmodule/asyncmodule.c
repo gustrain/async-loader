@@ -107,7 +107,7 @@ Entry_get_data(Worker *self, PyObject *args, PyObject *kwds)
 {
    Entry *entry = (Entry *) self;
 
-   return PyBytes_FromStringAndSize((char *) entry->entry->data, entry->entry->size);
+   return PyBytes_FromStringAndSize((char *) entry->entry->shm_wdata, entry->entry->size);
 }
 
 /* Release an entry. */
