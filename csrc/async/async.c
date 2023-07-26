@@ -130,7 +130,7 @@ async_try_get(wstate_t *state)
         /* Acquire shm object and mmap it so data may be accessed. */
         e->shm_wfd = shm_open(e->shm_fp, O_RDWR, S_IRUSR | S_IWUSR);
         assert(e->shm_wfd >= 0);
-        e->shm_wdata = mmap(NULL, e->size, PROT_WRITE, MAP_PRIVATE, e->shm_wfd, 0);
+        e->shm_wdata = mmap(NULL, e->size, PROT_WRITE, MAP_SHARED, e->shm_wfd, 0);
         assert(e->shm_wdata != NULL);
 
         return e;
@@ -240,7 +240,7 @@ async_perform_io(lstate_t *ld, entry_t *e)
     }
 
     /* Create mmap for the shm object. */
-    e->shm_ldata = mmap(NULL, e->size, PROT_WRITE, MAP_PRIVATE, e->shm_lfd, 0);
+    e->shm_ldata = mmap(NULL, e->size, PROT_WRITE, MAP_SHARED, e->shm_lfd, 0);
     if (e->shm_ldata == NULL) {
         shm_unlink(e->shm_fp);
         close(e->fd);
