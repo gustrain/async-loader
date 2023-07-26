@@ -247,6 +247,7 @@ async_perform_io(lstate_t *ld, entry_t *e)
         return -ENOMEM;
     }
     e->iovecs[0].iov_base = e->shm_ldata;
+    e->iovecs[0].iov_len = e->size;
     e->shm_lmapped = true;
 
     /* Try writing. */
@@ -422,7 +423,7 @@ async_init(lstate_t *loader,
             e->n_vecs = 1;
             e->iovecs = &iovec_start[entry_n * e->n_vecs];
             e->iovecs[0].iov_base = e->shm_ldata;
-            e->iovecs[0].iov_len = max_file_size;
+            e->iovecs[0].iov_len = 0;
 
             /* Configure entry. */
             e->path[0] = '\0';
