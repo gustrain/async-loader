@@ -213,7 +213,7 @@ async_perform_io(lstate_t *ld, entry_t *e)
         close(e->fd);
         return (int) size;
     }
-    e->size = (size_t) size;
+    e->size = (((size_t) size) | 0xFFF) + 1;
 
     /* Prepare the filepath according to shm requirements. */
     e->shm_fp[0] = '/';
@@ -450,7 +450,7 @@ async_init(lstate_t *loader,
        memory because while worker interact with the shared queues, the IO
        submissions (thus interactions with liburing) are done only by this
        reader/responder process. */
-    int status = io_uring_queue_init((unsigned int) (n_workers * queue_depth), &loader->ring, IORING_FEAT_SUBMIT_STABLE);
+    int status = io_uring_queue_init((unsigned int) (n_workers * queue_depth), &loader->ring, 0);
     if (status < 0) {
         fprintf(stderr, "io_uring_queue_init failed; %s\n", strerror(-status));
         mmap_free(loader->states, total_size);
