@@ -190,9 +190,9 @@ static int
 async_perform_io(lstate_t *ld, entry_t *e)
 {
     /* Unmap any previous mmap. */
-    if (e->shm_loader_mapped) {
+    if (e->shm_lmapped) {
         munmap(e->shm_ldata, e->size);
-        e->shm_loader_mapped = false;
+        e->shm_lmapped = false;
     }
 
     /* Path must not be empty. */
@@ -244,7 +244,7 @@ async_perform_io(lstate_t *ld, entry_t *e)
         return -ENOMEM;
     }
     e->iovecs[0].iov_base = e->shm_ldata;
-    e->shm_loader_mapped = true;
+    e->shm_lmapped = true;
 
     /* Create and submit the uring AIO request. */
     struct io_uring_sqe *sqe = io_uring_get_sqe(&ld->ring);
@@ -410,6 +410,7 @@ async_init(lstate_t *loader,
             e->shm_wfd = -1;
             e->shm_ldata = NULL;
             e->shm_wdata = NULL;
+            e->shm_lmapped = false;
 
             /* Configure the iovec for asynchronous readv. */
             e->n_vecs = 1;

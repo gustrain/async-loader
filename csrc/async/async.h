@@ -53,7 +53,7 @@ typedef struct queue_entry {
     uint8_t      *shm_wdata;                /* File data (SIZE bytes) in the shm
                                                object, accessible by the worker
                                                process. */
-    bool          shm_loader_mapped;        /* If set when the entry is accessed
+    bool          shm_lmapped;              /* If set when the entry is accessed
                                                in the free list, the loader must
                                                unmap SHM_DATA. */
 
