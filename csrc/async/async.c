@@ -130,7 +130,7 @@ async_try_get(wstate_t *state)
         /* Acquire shm object and mmap it so data may be accessed. */
         e->shm_wfd = shm_open(e->shm_fp, O_RDWR, S_IRUSR | S_IWUSR);
         assert(e->shm_wfd >= 0);
-        e->shm_wdata = mmap(NULL, e->size, PROT_WRITE, MAP_SHARED, e->shm_wfd, 0);
+        e->shm_wdata = mmap(NULL, e->shm_size, PROT_WRITE, MAP_SHARED, e->shm_wfd, 0);
         assert(e->shm_wdata != NULL);
 
         return e;
@@ -147,7 +147,7 @@ async_release(entry_t *e)
     /* Unlink the shm object, and unmap the worker-side mmap. */
     shm_unlink(e->shm_fp);
     close(e->shm_wfd);
-    munmap(e->shm_wdata, e->size);
+    munmap(e->shm_wdata, e->shm_size);
 
     /* Insert into the free list. */
     fifo_push(&e->worker->free, &e->worker->free_lock, e);
@@ -193,7 +193,7 @@ async_perform_io(lstate_t *ld, entry_t *e)
 {
     /* Unmap any previous mmap. */
     if (e->shm_lmapped) {
-        munmap(e->shm_ldata, e->size);
+        munmap(e->shm_ldata, e->shm_size);
         close(e->shm_lfd);
         e->shm_lmapped = false;
     }
@@ -214,6 +214,7 @@ async_perform_io(lstate_t *ld, entry_t *e)
         return (int) size;
     }
     e->size = (size_t) size;
+    e->shm_size = (e->size | 0xFFF) + 1; /* Ensure we mmap a multiple of 4KB. */
 
     /* Prepare the filepath according to shm requirements. */
     e->shm_fp[0] = '/';
@@ -235,7 +236,7 @@ async_perform_io(lstate_t *ld, entry_t *e)
     }
 
     /* Appropriately size the shm object. */
-    if (ftruncate(e->shm_lfd, e->size) < 0) {
+    if (ftruncate(e->shm_lfd, e->shm_size) < 0) {
         shm_unlink(e->shm_fp);
         close(e->shm_lfd);
         close(e->fd);
@@ -243,7 +244,7 @@ async_perform_io(lstate_t *ld, entry_t *e)
     }
 
     /* Create mmap for the shm object. */
-    e->shm_ldata = mmap(NULL, e->size, PROT_WRITE, MAP_SHARED, e->shm_lfd, 0);
+    e->shm_ldata = mmap(NULL, e->shm_size, PROT_WRITE, MAP_SHARED, e->shm_lfd, 0);
     if (e->shm_ldata == NULL) {
         shm_unlink(e->shm_fp);
         close(e->shm_lfd);
@@ -251,14 +252,8 @@ async_perform_io(lstate_t *ld, entry_t *e)
         return -ENOMEM;
     }
     e->iovecs[0].iov_base = e->shm_ldata;
-    e->iovecs[0].iov_len = e->size;
+    e->iovecs[0].iov_len = e->shm_size;
     e->shm_lmapped = true;
-
-    printf("mmap for %s (%s) gave ldata = %p\n", e->path, e->shm_fp, e->shm_ldata);
-    assert(((size_t) e->iovecs[0].iov_base) % 4096 == 0);
-
-    /* Try writing. */
-    memset(e->shm_ldata, 0xDD, e->size);
 
     /* Create and submit the uring AIO request. */
     struct io_uring_sqe *sqe = io_uring_get_sqe(&ld->ring);
@@ -421,6 +416,7 @@ async_init(lstate_t *loader,
             e->shm_fp[0] = 0;
             e->shm_lfd = -1;
             e->shm_wfd = -1;
+            e->shm_size = 0;
             e->shm_ldata = NULL;
             e->shm_wdata = NULL;
             e->shm_lmapped = false;

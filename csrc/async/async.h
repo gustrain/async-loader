@@ -41,7 +41,8 @@ typedef struct queue_entry {
                                                Not to be touched by workers. */
     struct iovec *iovecs;                   /* Array of iovecs for readv. */
     size_t        n_vecs;                   /* Number of structs in IOVECS. */
-    size_t        size;                     /* Size of file data in bytes. */
+    size_t        size;                     /* Size of file in bytes. */
+    size_t        shm_size;                 /* Size of shm object in bytes. */
     char          shm_fp[MAX_PATH_LEN+2];   /* Name used for shm object. */
     int           shm_lfd;                  /* File descriptor of shm object for
                                                the loader process. */
