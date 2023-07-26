@@ -130,7 +130,7 @@ async_try_get(wstate_t *state)
         /* Acquire shm object and mmap it so data may be accessed. */
         e->shm_wfd = shm_open(e->shm_fp, O_RDWR, S_IRUSR | S_IWUSR);
         assert(e->shm_wfd >= 0);
-        e->shm_wdata = mmap(NULL, e->shm_size, PROT_WRITE, MAP_SHARED, e->shm_wfd, 0);
+        e->shm_wdata = mmap(NULL, e->size, PROT_WRITE, MAP_SHARED, e->shm_wfd, 0);
         assert(e->shm_wdata != NULL);
 
         return e;
@@ -147,7 +147,7 @@ async_release(entry_t *e)
     /* Unlink the shm object, and unmap the worker-side mmap. */
     shm_unlink(e->shm_fp);
     close(e->shm_wfd);
-    munmap(e->shm_wdata, e->shm_size);
+    munmap(e->shm_wdata, e->size);
 
     /* Insert into the free list. */
     fifo_push(&e->worker->free, &e->worker->free_lock, e);
@@ -193,7 +193,7 @@ async_perform_io(lstate_t *ld, entry_t *e)
 {
     /* Unmap any previous mmap. */
     if (e->shm_lmapped) {
-        munmap(e->shm_ldata, e->shm_size);
+        munmap(e->shm_ldata, e->size);
         close(e->shm_lfd);
         e->shm_lmapped = false;
     }
@@ -214,7 +214,6 @@ async_perform_io(lstate_t *ld, entry_t *e)
         return (int) size;
     }
     e->size = (size_t) size;
-    e->shm_size = (e->size | 0xFFF) + 1; /* Ensure we mmap a multiple of 4KB. */
 
     /* Prepare the filepath according to shm requirements. */
     e->shm_fp[0] = '/';
@@ -236,7 +235,7 @@ async_perform_io(lstate_t *ld, entry_t *e)
     }
 
     /* Appropriately size the shm object. */
-    if (ftruncate(e->shm_lfd, e->shm_size) < 0) {
+    if (ftruncate(e->shm_lfd, e->size) < 0) {
         shm_unlink(e->shm_fp);
         close(e->shm_lfd);
         close(e->fd);
@@ -244,20 +243,18 @@ async_perform_io(lstate_t *ld, entry_t *e)
     }
 
     /* Create mmap for the shm object. */
-    e->shm_ldata = mmap(NULL, e->shm_size, PROT_WRITE, MAP_SHARED, e->shm_lfd, 0);
+    e->shm_ldata = mmap(NULL, e->size, PROT_WRITE, MAP_SHARED, e->shm_lfd, 0);
     if (e->shm_ldata == NULL) {
         shm_unlink(e->shm_fp);
         close(e->shm_lfd);
         close(e->fd);
         return -ENOMEM;
     }
-    e->iovecs[0].iov_base = e->shm_ldata;
-    e->iovecs[0].iov_len = e->shm_size;
     e->shm_lmapped = true;
 
     /* Create and submit the uring AIO request. */
     struct io_uring_sqe *sqe = io_uring_get_sqe(&ld->ring);
-    io_uring_prep_readv(sqe, e->fd, e->iovecs, e->n_vecs, 0);
+    io_uring_prep_read(sqe, e->fd, e->shm_ldata, e->size, 0);
     io_uring_sqe_set_data(sqe, e);  /* Associate request with this entry. */
     io_uring_submit(&ld->ring);
 
@@ -317,7 +314,7 @@ async_responder_loop(void *arg)
             continue;
         } else if (cqe->res < 0) {
             entry_t *e = io_uring_cqe_get_data(cqe);
-            fprintf(stderr, "asynchronous read failed; %s (iov_base @ %p, data @ %p, size = 0x%lx, shm_size = 0x%lx).\n", strerror(-cqe->res), e->iovecs[0].iov_base, e->shm_ldata, e->size, e->shm_size);
+            fprintf(stderr, "asynchronous read failed; %s (data @ %p, size = 0x%lx).\n", strerror(-cqe->res), e->shm_ldata, e->size);
             if (cnt++ > 32) {
                 exit(EXIT_FAILURE);
             }
@@ -371,22 +368,22 @@ async_init(lstate_t *loader,
     /* Figure out how much memory to allocate. */
     size_t entry_size = sizeof(entry_t);
     size_t queue_size = entry_size * queue_depth;
-    size_t worker_size = sizeof(struct iovec) + queue_size + sizeof(wstate_t);
-    size_t total_size = worker_size * n_workers + BLOCK_SIZE;
+    size_t worker_size = queue_size + sizeof(wstate_t);
+    size_t total_size = worker_size * n_workers;
 
     /* Do the allocation. */
     if ((loader->states = mmap_alloc(total_size)) == NULL) {
         return -ENOMEM;
     }
 
-    /*   LO                    HI
-        ┌────────┬───────┬───────┐
-        │wstate_t│entry_t│iovec  │
-        │structs │structs│structs│
-        └┬───────┴┬──────┴┬──────┘
-         │        │       │
-         │        │       │
-         │        │       └►n_workers * queue_depth * sizeof(struct iovec)
+    /*   LO            HI
+        ┌────────┬───────┐
+        │wstate_t│entry_t│
+        │structs │structs│
+        └┬───────┴┬──────┘
+         │        │
+         │        │
+         │        │
          │        └►n_workers * queue_depth * sizeof(entry_t)
          └►n_workers * sizeof(wstate_t)
     */
@@ -398,7 +395,6 @@ async_init(lstate_t *loader,
 
     /* Addresses of each region. */
     entry_t      *entry_start = (entry_t *) ((uint8_t *) loader->states + state_bytes);
-    struct iovec *iovec_start = (struct iovec *) ((uint8_t *) entry_start + entry_bytes);
 
     /* Assign all of the correct locations to each state/queue. */
     size_t entry_n = 0;
@@ -416,16 +412,9 @@ async_init(lstate_t *loader,
             e->shm_fp[0] = 0;
             e->shm_lfd = -1;
             e->shm_wfd = -1;
-            e->shm_size = 0;
             e->shm_ldata = NULL;
             e->shm_wdata = NULL;
             e->shm_lmapped = false;
-
-            /* Configure the iovec for asynchronous readv. */
-            e->n_vecs = 1;
-            e->iovecs = &iovec_start[entry_n * e->n_vecs];
-            e->iovecs[0].iov_base = e->shm_ldata;
-            e->iovecs[0].iov_len = 0;
 
             /* Configure entry. */
             e->path[0] = '\0';
