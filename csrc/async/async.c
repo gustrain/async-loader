@@ -32,6 +32,8 @@
 #include <assert.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <sys/shm.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/syscall.h>
@@ -118,13 +120,20 @@ async_try_request(wstate_t *state, char *path)
 entry_t *
 async_try_get(wstate_t *state)
 {
+    entry_t *e;
+
     /* Try to get an entry from the completed list. Return NULL if empty. This
        read is racy, but the only goal is to prevent hogging the lock when the
        list is empty. */
     if (state->completed != NULL) {
-        entry_t *e = fifo_pop(&state->completed, &state->completed_lock);
-        return e;
+        e = fifo_pop(&state->completed, &state->completed_lock);
     }
+
+    /* Acquire shm object and mmap it so data may be accessed. */
+    e->shm_wfd = shm_open(e->shm_fp, O_RDWR, 0);
+    assert(e->shm_wfd >= 0);
+    e->shm_wdata = mmap(NULL, e->size, PROT_WRITE, MAP_PRIVATE, e->shm_wfd, 0);
+    assert(e->shm_wdata != NULL);
     
     return NULL;
 }
@@ -134,6 +143,10 @@ async_try_get(wstate_t *state)
 void
 async_release(entry_t *e)
 {
+    /* Unlink the shm object, and unmap the worker-side mmap. */
+    assert(shm_unlink(e->shm_fp) == 0);
+    assert(munmap(e->shm_wdata, e->size) == 0);
+
     /* Insert into the free list. */
     fifo_push(&e->worker->free, &e->worker->free_lock, e);
 }
@@ -170,29 +183,71 @@ file_get_size(int fd)
     return -1;
 }
 
-/* Submits an AIO for the file at PATH, for a maximum of MAX_SIZE bytes to be
-   read into the buffer DATA. Saves the file descriptor to FD, and allows AIO to
-   save number of bytes read to SIZE. On success, returns 0. On failure, returns
-   negative ERRNO value. */
+/* Submits an AIO for the file at PATH, allocating an shm object of equal size
+   to the file for the data to be read into. Saves the file descriptor to FD.
+   On success, returns 0. On failure, returns negative ERRNO value. */
 static int
 async_perform_io(lstate_t *ld, entry_t *e)
 {
+    /* Unmap any previous mmap. */
+    if (e->shm_loader_mapped) {
+        munmap(e->shm_ldata, e->size);
+        e->shm_loader_mapped = false;
+    }
+
+    /* Path must not be empty. */
+    assert(e->path[0] != '\0');
+
     /* Open the file, get and check size. */
     if ((e->fd = open(e->path, O_RDONLY)) < 0) {
         return -errno;
     };
 
-    /* Get the file's size, check it's within bounds. */
+    /* Get the file's size. */
     off_t size = file_get_size(e->fd);
-    if (size < 0 || (size_t) size > e->max_size) {
+    if (size < 0) {
         close(e->fd);
-        return -E2BIG;
+        return (int) size;
     }
     e->size = (size_t) size;
 
+    /* Prepare the filepath according to shm requirements. */
+    e->shm_fp[0] = '/';
+    for (int i = 0; i < MAX_PATH_LEN + 1; i++) {
+        /* Replace all occurences of '/' with '_'. */
+        e->shm_fp[i] = e->path[i] == '/' ? '_' : e->path[i];
+        if (e->path[i] == '\0') {
+            break;
+        }
+    }
+
+    /* Allocate shm object. It will be the responsibility of the worker to call
+       ASYNC_RELEASE in order to unlink this shm object. */
+    e->shm_lfd = shm_open(e->shm_fp, O_RDWR, O_CREAT);
+    if (e->shm_lfd < 0) {
+        close(e->fd);
+        return -errno;
+    }
+
+    /* Appropriately size the shm object. */
+    if (ftruncate(e->shm_lfd, e->size) < 0) {
+        shm_unlink(e->shm_lfd);
+        close(e->fd);
+        return -errno;
+    }
+
+    /* Create mmap for the shm object. */
+    e->shm_ldata = mmap(NULL, e->size, PROT_WRITE, MAP_PRIVATE, e->shm_lfd, 0);
+    if (e->shm_ldata == NULL) {
+        shm_unlink(e->shm_lfd);
+        close(e->fd);
+        return -ENOMEM;
+    }
+    e->iovecs[0].iov_base = e->shm_ldata;
+    e->shm_loader_mapped = true;
+
     /* Create and submit the uring AIO request. */
     struct io_uring_sqe *sqe = io_uring_get_sqe(&ld->ring);
-    assert(e->iovecs[0].iov_base == e->data);
     io_uring_prep_readv(sqe, e->fd, e->iovecs, e->n_vecs, 0);
     io_uring_sqe_set_data(sqe, e);  /* Associate request with this entry. */
     io_uring_submit(&ld->ring);
@@ -253,7 +308,7 @@ async_responder_loop(void *arg)
             continue;
         } else if (cqe->res < 0) {
             entry_t *e = io_uring_cqe_get_data(cqe);
-            fprintf(stderr, "asynchronous read failed; %s (iov_base @ %p, data @ %p).\n", strerror(-cqe->res), e->iovecs[0].iov_base, e->data);
+            fprintf(stderr, "asynchronous read failed; %s (iov_base @ %p, data @ %p).\n", strerror(-cqe->res), e->iovecs[0].iov_base, e->shm_ldata);
             if (cnt++ > 32) {
                 exit(EXIT_FAILURE);
             }
@@ -304,9 +359,8 @@ async_init(lstate_t *loader,
            size_t n_workers,
            size_t min_dispatch_n)
 {
-    /* Figure out how much memory to allocate. Allocate an extra BLOCK_SIZE
-       bytes so that we have sufficient memory even after data alignment. */
-    size_t entry_size = sizeof(entry_t) + max_file_size;
+    /* Figure out how much memory to allocate. */
+    size_t entry_size = sizeof(entry_t);
     size_t queue_size = entry_size * queue_depth;
     size_t worker_size = sizeof(struct iovec) + queue_size + sizeof(wstate_t);
     size_t total_size = worker_size * n_workers + BLOCK_SIZE;
@@ -316,13 +370,13 @@ async_init(lstate_t *loader,
         return -ENOMEM;
     }
 
-    /*   LO                                  HI
-        ┌────────┬───────┬───────┬─────────────┐
-        │wstate_t│entry_t│iovec  │    file     │
-        │structs │structs│structs│    data     │
-        └┬───────┴┬──────┴┬──────┴┬────────────┘
-         │        │       │       │
-         │        │       │       └►n_workers * queue_depth * max_file_size
+    /*   LO                    HI
+        ┌────────┬───────┬───────┐
+        │wstate_t│entry_t│iovec  │
+        │structs │structs│structs│
+        └┬───────┴┬──────┴┬──────┘
+         │        │       │
+         │        │       │
          │        │       └►n_workers * queue_depth * sizeof(struct iovec)
          │        └►n_workers * queue_depth * sizeof(entry_t)
          └►n_workers * sizeof(wstate_t)
@@ -337,11 +391,6 @@ async_init(lstate_t *loader,
     /* Addresses of each region. */
     entry_t      *entry_start = (entry_t *) ((uint8_t *) loader->states + state_bytes);
     struct iovec *iovec_start = (struct iovec *) ((uint8_t *) entry_start + entry_bytes);
-    uint8_t      *data_start  = (uint8_t *) iovec_start + iovec_bytes;
-
-    /* Ensure that data is block-aligned. */
-    data_start += BLOCK_SIZE - (((uint64_t) data_start) % BLOCK_SIZE);
-    assert(((uint64_t) data_start) % BLOCK_SIZE == 0);
 
     /* Assign all of the correct locations to each state/queue. */
     size_t entry_n = 0;
@@ -355,21 +404,24 @@ async_init(lstate_t *loader,
         for (size_t j = 0; j < queue_depth; j++) {
             entry_t *e = &state->queue[j];
 
-            /* Data needs to be block-aligned. */
-            e->data = data_start + entry_n * max_file_size;
-            assert(((uint64_t) e->data) % BLOCK_SIZE == 0);
+            /* Configure SHM. */
+            e->shm_fp[0] = 0;
+            e->shm_lfd = -1;
+            e->shm_wfd = -1;
+            e->shm_ldata = NULL;
+            e->shm_wdata = NULL;
 
             /* Configure the iovec for asynchronous readv. */
             e->n_vecs = 1;
             e->iovecs = &iovec_start[entry_n * e->n_vecs];
-            e->iovecs[0].iov_base = e->data;
+            e->iovecs[0].iov_base = e->shm_ldata;
             e->iovecs[0].iov_len = max_file_size;
 
             /* Configure entry. */
-            e->max_size = max_file_size;
             e->path[0] = '\0';
             e->worker = state;
             e->size = 0;
+            e->fd = -1;
 
             /* Link this entry to the following and previous entries, in order
                to initialize the free list with all entries. */
