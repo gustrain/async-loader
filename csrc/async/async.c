@@ -219,6 +219,8 @@ async_perform_io(lstate_t *ld, entry_t *e)
 
     /* Get the file's LBA. */
     struct fiemap fiemap;
+    memset(&fiemap, 0, sizeof(struct fiemap));
+    fiemap.fm_length = -1;
     if (ioctl(e->fd, FS_IOC_FIEMAP, &fiemap) < 0) {
         fprintf(stderr, "failed to get fiemap; %s\n", strerror(errno));
         goto skip_fiemap;
