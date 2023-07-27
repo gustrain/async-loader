@@ -218,16 +218,22 @@ async_perform_io(lstate_t *ld, entry_t *e)
     e->size = (((size_t) size) | 0xFFF) + 1;
 
     /* Get the file's LBA. */
-    struct fiemap *fiemap;
-    if ((fiemap = read_fiemap(e->fd)) != NULL) {
-        printf("File %s ...\n"
-               "\t...physical = 0x%lu\n"
-               "\t...logical  = 0x%lu\n",
-               e->path,
-               fiemap->fm_extents[0].fe_logical,
-               fiemap->fm_extents[0].fe_physical);
+    struct fiemap fiemap;
+    memset(&fiemap, 0, sizeof(struct fiemap));
+    if (ioctl(e->fd, FS_IOC_FIEMAP, &fiemap) < 0) {
+        fprintf(stderr, "failed to get fiemap\n");
+        goto skip_fiemap;
     }
-    free(fiemap);
+
+    printf("File %s ... (%ld extents)\n", fiemap.fm_extent_count);
+    for (unsigned int i = 0; i < fiemap.fm_extent_count; i++) {
+        printf("\t...extents[%ld].physical = %llu\n", i, fiemap.fm_extents[i].fe_physical);
+    }
+    for (unsigned int i = 0; i < fiemap.fm_extent_count; i++) {
+        printf("\t...extents[%ld].logical = %llu\n", i, fiemap.fm_extents[i].fe_logical);
+    }
+
+   skip_fiemap:
 
     /* Prepare the filepath according to shm requirements. */
     e->shm_fp[0] = '/';
