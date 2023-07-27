@@ -256,9 +256,6 @@ async_perform_io(lstate_t *ld, entry_t *e)
     for (unsigned int i = 0; i < fiemap->fm_mapped_extents; i++) {
         printf("\t...extents[%u].physical = 0x%llx\n", i, fiemap->fm_extents[i].fe_physical);
     }
-    for (unsigned int i = 0; i < fiemap->fm_mapped_extents; i++) {
-        printf("\t...extents[%u].logical = 0x%llx\n", i, fiemap->fm_extents[i].fe_logical);
-    }
 
     free(fiemap);
 
