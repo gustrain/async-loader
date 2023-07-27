@@ -224,9 +224,10 @@ async_perform_io(lstate_t *ld, entry_t *e)
     fiemap->fm_length = ~0;
     fiemap->fm_extent_count = 1;
     if (ioctl(e->fd, FS_IOC_FIEMAP, fiemap) < 0) {
-        fprintf(stderr, "failed to get fiemap (1); %s\n", strerror(errno));
-    } else {
-        printf("%s extents[0].physical = %llx\n", e->path, fiemap->fm_extents[0].fe_physical);
+        fprintf(stderr,
+                "failed to get fiemap (1) for %s; %s\n",
+                e->path,
+                strerror(errno));
     }
 
     /* Prepare the filepath according to shm requirements. */
@@ -288,7 +289,7 @@ async_reader_loop(void *arg)
     while (true) {
         wstate_t *st = &ld->states[i++ % ld->n_states];
 
-        /* Take an item from the ready list. Racy check to avoid hogging lock. */
+        /* Pop an item from the ready list. Racy check to avoid hogging lock. */
         if ((e = fifo_pop(&st->ready, &st->ready_lock)) == NULL) {
             continue;
         }
@@ -297,7 +298,11 @@ async_reader_loop(void *arg)
         int status = async_perform_io(ld, e);
         if (status < 0) {
             /* What to do on failure? */
-            fprintf(stderr, "reader failed to issue IO; %s; %s; %s.\n", e->path, e->shm_fp, strerror(-status));
+            fprintf(stderr,
+                    "reader failed to issue IO; %s; %s; %s.\n",
+                    e->path,
+                    e->shm_fp,
+                    strerror(-status));
             fifo_push(&st->ready, &st->ready_lock, e);
         }
     }
@@ -318,11 +323,17 @@ async_responder_loop(void *arg)
         /* Remove an entry from the completion queue. */
         int status = io_uring_wait_cqe(&ld->ring, &cqe);
         if (status < 0) {
-            fprintf(stderr, "io_uring_wait_cqe failed; %s.\n", strerror(-status));
+            fprintf(stderr,
+                    "io_uring_wait_cqe failed; %s.\n",
+                    strerror(-status));
             continue;
         } else if (cqe->res < 0) {
             entry_t *e = io_uring_cqe_get_data(cqe);
-            fprintf(stderr, "asynchronous read failed; %s (data @ %p, size = 0x%lx).\n", strerror(-cqe->res), e->shm_ldata, e->size);
+            fprintf(stderr,
+                    "asynchronous read failed; %s (data @ %p, size = 0x%lx).\n",
+                    strerror(-cqe->res),
+                    e->shm_ldata,
+                    e->size);
             if (cnt++ > 32) {
                 exit(EXIT_FAILURE);
             }
@@ -348,7 +359,9 @@ async_start(lstate_t *loader)
     pthread_t reader;
     int status = pthread_create(&reader, NULL, async_reader_loop, loader);
     if (status < 0) {
-        fprintf(stderr, "failed to created reader thread; %s\n", strerror(-status));
+        fprintf(stderr,
+                "failed to created reader thread; %s\n",
+                strerror(-status));
         assert(false);
     }
 
@@ -398,7 +411,7 @@ async_init(lstate_t *loader,
     size_t state_bytes = n_workers * sizeof(wstate_t);
 
     /* Addresses of each region. */
-    entry_t      *entry_start = (entry_t *) ((uint8_t *) loader->states + state_bytes);
+    entry_t *entry_start = (entry_t *) ((uint8_t *) loader->states + state_bytes);
 
     /* Assign all of the correct locations to each state/queue. */
     size_t entry_n = 0;
@@ -454,7 +467,9 @@ async_init(lstate_t *loader,
        memory because while worker interact with the shared queues, the IO
        submissions (thus interactions with liburing) are done only by this
        reader/responder process. */
-    int status = io_uring_queue_init((unsigned int) (n_workers * queue_depth), &loader->ring, 0);
+    int status = io_uring_queue_init((unsigned int) (n_workers * queue_depth),
+                                     &loader->ring,
+                                     0);
     if (status < 0) {
         fprintf(stderr, "io_uring_queue_init failed; %s\n", strerror(-status));
         mmap_free(loader->states, total_size);
