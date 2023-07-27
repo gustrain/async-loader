@@ -7,7 +7,9 @@ Python asynchronous file loader module implemented in C/CPython.
 ### Requirements
 
 * Install liburing (follow the instructions at https://github.com/axboe/liburing).
-* Ensure kernel is sufficently up-to-date for liburing (`sudo apt-get upgrade`).
+* Ensure kernel is sufficently up-to-date for liburing (check version with `uname -r`).
+  * To update, run `sudo apt-get update` and `sudo apt-get upgrade `.
+  * Reboot to take effect (`sudo reboot`).
 
 ### Manual
 
