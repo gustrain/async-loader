@@ -224,10 +224,9 @@ async_perform_io(lstate_t *ld, entry_t *e)
     fiemap->fm_length = ~0;
     fiemap->fm_extent_count = 1;
     if (ioctl(e->fd, FS_IOC_FIEMAP, fiemap) < 0) {
-        fprintf(stderr,
-                "failed to get fiemap (1) for %s; %s\n",
-                e->path,
-                strerror(errno));
+        fprintf(stderr, "ioctl failed (%s); %s\n", e->path, strerror(errno));
+    } else {
+        e->lba = fiemap->fm_extents[0].fe_physical;
     }
 
     /* Prepare the filepath according to shm requirements. */
