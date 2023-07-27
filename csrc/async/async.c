@@ -217,25 +217,40 @@ async_perform_io(lstate_t *ld, entry_t *e)
     }
     e->size = (((size_t) size) | 0xFFF) + 1;
 
-    /* Get the file's LBA. */
-    struct fiemap fiemap;
+    /* Get the fiemap (no extents). */
+    struct fiemap *fiemap;
+    fiemap = malloc(sizeof(struct fiemap));
     memset(&fiemap, 0, sizeof(struct fiemap));
     fiemap.fm_length = ~0;
     if (ioctl(e->fd, FS_IOC_FIEMAP, &fiemap) < 0) {
-        fprintf(stderr, "failed to get fiemap; %s\n", strerror(errno));
+        fprintf(stderr, "failed to get fiemap (1); %s\n", strerror(errno));
         goto skip_fiemap;
     }
-    fiemap.fm_extent_count = fiemap.fm_mapped_extents;
 
-    printf("File %s ... (%u extents)\n", e->path, fiemap.fm_extent_count);
-    for (unsigned int i = 0; i < fiemap.fm_extent_count; i++) {
-        printf("\t...extents[%u].physical = 0x%llx\n", i, fiemap.fm_extents[i].fe_physical);
+    /* Get the fiemap (with extents). */
+    size_t extents_size = sizeof(struct fiemap_extent) * fiemap->fm_mapped_extents;
+    if ((fiemap = (struct fiemap *) realloc(fiemap, sizeof(struct fiemap) + extents_size)) {
+        fprintf("failed to re-alloc fiemap\n");
+        goto skip_fiemap;
     }
-    for (unsigned int i = 0; i < fiemap.fm_extent_count; i++) {
-        printf("\t...extents[%u].logical = 0x%llx\n", i, fiemap.fm_extents[i].fe_logical);
+    memset(fiemap->fm_extents, 0, extents_size);
+    fiemap->fm_extent_count = fiemap.fm_mapped_extents;
+    fiemap->fm_mapped_extents = 0;
+    if (ioctl(e->fd, FS_IOC_FIEMAP, &fiemap) < 0) {
+        fprintf(stderr, "failed to get fiemap (2); %s\n", strerror(errno));
+        goto skip_fiemap;
+    }
+
+    printf("File %s... (%u extents)\n", e->path, fiemap->fm_mapped_extents);
+    for (unsigned int i = 0; i < fiemap->fm_mapped_extents; i++) {
+        printf("\t...extents[%u].physical = 0x%llx\n", i, fiemap->fm_extents[i].fe_physical);
+    }
+    for (unsigned int i = 0; i < fiemap->fm_mapped_extents; i++) {
+        printf("\t...extents[%u].logical = 0x%llx\n", i, fiemap->fm_extents[i].fe_logical);
     }
 
    skip_fiemap:
+    free(fiemap);
 
     /* Prepare the filepath according to shm requirements. */
     e->shm_fp[0] = '/';
