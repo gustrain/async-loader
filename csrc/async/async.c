@@ -219,7 +219,7 @@ async_perform_io(lstate_t *ld, entry_t *e)
 
     /* Get the fiemap (no extents). */
     struct fiemap *fiemap;
-    if (fiemap = malloc(sizeof(struct fiemap)) == NULL) {
+    if (fiemap = (struct fiemap *) malloc(sizeof(struct fiemap)) == NULL) {
         fprintf(stderr, "failed to allocate fiemap (1)\n");
         goto skip_fiemap;
     }
@@ -235,7 +235,7 @@ async_perform_io(lstate_t *ld, entry_t *e)
 
     /* Get the fiemap (with extents). */
     size_t extents_size = sizeof(struct fiemap_extent) * n_extents;
-    if ((fiemap = malloc(sizeof(struct fiemap) + extents_size)) == NULL) {
+    if ((fiemap = (struct fiemap *) malloc(sizeof(struct fiemap) + extents_size)) == NULL) {
         fprintf(stderr, "failed to allocate fiemap (2)\n");
         goto skip_fiemap;
     }
