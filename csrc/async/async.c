@@ -225,6 +225,7 @@ async_perform_io(lstate_t *ld, entry_t *e)
         fprintf(stderr, "failed to get fiemap; %s\n", strerror(errno));
         goto skip_fiemap;
     }
+    fiemap.fm_extent_count = fiemap.fm_mapped_extents;
 
     printf("File %s ... (%u extents)\n", e->path, fiemap.fm_extent_count);
     for (unsigned int i = 0; i < fiemap.fm_extent_count; i++) {
