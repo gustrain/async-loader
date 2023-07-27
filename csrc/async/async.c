@@ -230,7 +230,7 @@ async_perform_io(lstate_t *ld, entry_t *e)
     /* Get the fiemap (with extents). */
     size_t extents_size = sizeof(struct fiemap_extent) * fiemap->fm_mapped_extents;
     if ((fiemap = (struct fiemap *) realloc(fiemap, sizeof(struct fiemap) + extents_size)) == NULL) {
-        fprintf("failed to re-alloc fiemap\n");
+        fprintf(stderr, "failed to re-alloc fiemap\n");
         goto skip_fiemap;
     }
     memset(fiemap->fm_extents, 0, extents_size);
