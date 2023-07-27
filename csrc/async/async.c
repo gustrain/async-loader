@@ -219,7 +219,10 @@ async_perform_io(lstate_t *ld, entry_t *e)
 
     /* Get the fiemap (no extents). */
     struct fiemap *fiemap;
-    fiemap = malloc(sizeof(struct fiemap));
+    if (fiemap = malloc(sizeof(struct fiemap)) == NULL) {
+        fprintf(stderr, "failed to allocate fiemap (1)\n");
+        goto skip_fiemap;
+    }
     memset(&fiemap, 0, sizeof(struct fiemap));
     fiemap->fm_length = ~0;
     if (ioctl(e->fd, FS_IOC_FIEMAP, &fiemap) < 0) {
@@ -227,16 +230,18 @@ async_perform_io(lstate_t *ld, entry_t *e)
         free(fiemap);
         goto skip_fiemap;
     }
+    unsigned int n_extents = fiemap->fm_mapped_extents;
+    free(fiemap);
 
     /* Get the fiemap (with extents). */
-    size_t extents_size = sizeof(struct fiemap_extent) * fiemap->fm_mapped_extents;
-    if ((fiemap = (struct fiemap *) realloc(fiemap, sizeof(struct fiemap) + extents_size)) == NULL) {
-        fprintf(stderr, "failed to re-alloc fiemap\n");
+    size_t extents_size = sizeof(struct fiemap_extent) * n_extents;
+    if ((fiemap = malloc(sizeof(struct fiemap) + extents_size)) == NULL) {
+        fprintf(stderr, "failed to allocate fiemap (2)\n");
         goto skip_fiemap;
     }
     memset(fiemap->fm_extents, 0, extents_size);
-    fiemap->fm_extent_count = fiemap->fm_mapped_extents;
-    fiemap->fm_mapped_extents = 0;
+    fiemap->fm_length = ~0;
+    fiemap->fm_extent_count = n_extents;
     if (ioctl(e->fd, FS_IOC_FIEMAP, &fiemap) < 0) {
         fprintf(stderr, "failed to get fiemap (2); %s\n", strerror(errno));
         free(fiemap);
