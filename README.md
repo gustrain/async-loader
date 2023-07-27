@@ -48,8 +48,8 @@ Request a filepath to be loaded.
 
 #### `Worker.try_get() -> AsyncLoader.Entry`
 
-Attempt to fetch an entry from the completion queue. If no entry is available,
-`None` is returned.
+Attempt to fetch an entry from the completion queue. If an entry is available,
+returns an `AsyncLoader.Entry`. If no entry is available, `None` is returned.
 
 #### `Worker.wait_get() -> AsyncLoader.Entry`
 
