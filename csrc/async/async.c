@@ -224,7 +224,8 @@ async_perform_io(lstate_t *ld, entry_t *e)
     fiemap->fm_length = ~0;
     if (ioctl(e->fd, FS_IOC_FIEMAP, &fiemap) < 0) {
         fprintf(stderr, "failed to get fiemap (1); %s\n", strerror(errno));
-        goto skip_fiemap_free;
+        free(fiemap);
+        goto skip_fiemap;
     }
 
     /* Get the fiemap (with extents). */
@@ -238,7 +239,8 @@ async_perform_io(lstate_t *ld, entry_t *e)
     fiemap->fm_mapped_extents = 0;
     if (ioctl(e->fd, FS_IOC_FIEMAP, &fiemap) < 0) {
         fprintf(stderr, "failed to get fiemap (2); %s\n", strerror(errno));
-        goto skip_fiemap_free;
+        free(fiemap);
+        goto skip_fiemap;
     }
 
     printf("File %s... (%u extents)\n", e->path, fiemap->fm_mapped_extents);
@@ -249,8 +251,8 @@ async_perform_io(lstate_t *ld, entry_t *e)
         printf("\t...extents[%u].logical = 0x%llx\n", i, fiemap->fm_extents[i].fe_logical);
     }
 
-   skip_fiemap_free:
     free(fiemap);
+
    skip_fiemap:
 
     /* Prepare the filepath according to shm requirements. */
