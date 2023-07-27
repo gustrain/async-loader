@@ -15,7 +15,7 @@ Python asynchronous file loader module implemented in C/CPython.
 
 *Note: you may need to `chown` the created build folder for proper permissions.*
 
-## Documenation
+## Documentation
 
 ### `AsyncLoader.Loader(queue_depth: int, max_file_size: int, n_workers: int, min_dispatch_n: int)`
 
