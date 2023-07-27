@@ -40,6 +40,8 @@
 #include <liburing.h>
 #include <string.h>
 #include <time.h>
+#include <linux/fs.h>
+#include <linux/fiemap.h>
 
 
 /* Insert ELEM into a doubly linked list, maintaining FIFO order. */
@@ -214,6 +216,18 @@ async_perform_io(lstate_t *ld, entry_t *e)
         return (int) size;
     }
     e->size = (((size_t) size) | 0xFFF) + 1;
+
+    /* Get the file's LBA. */
+    struct fiemap *fiemap;
+    if ((fiemap = read_fiemap(e->fd)) != NULL) {
+        printf("File %s ...\n"
+               "\t...physical = 0x%lu\n"
+               "\t...logical  = 0x%lu\n",
+               e->path,
+               fiemap->fm_extents[0].fe_logical,
+               fiemap->fm_extents[0].fe_physical);
+    }
+    free(fiemap);
 
     /* Prepare the filepath according to shm requirements. */
     e->shm_fp[0] = '/';
