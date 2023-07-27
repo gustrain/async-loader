@@ -32,7 +32,7 @@ threads. Does not return.
 #### `Loader.spawn_loader()`
 
 Causes this process to fork, with the child becoming the loader process.
-Equivilent to spawning a new process and calling `become_loader()`
+Equivilent to spawning a new process and calling `become_loader()`.
 
 #### `Loader.get_worker_context(id: int) -> AsyncLoader.Worker`
 
