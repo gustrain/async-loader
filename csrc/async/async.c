@@ -217,17 +217,14 @@ async_perform_io(lstate_t *ld, entry_t *e)
     }
     e->size = (((size_t) size) | 0xFFF) + 1;
 
-    printf("A\n");
-
-    /* Get the fiemap (no extents). */
+    /* Allocate fiemap (no extents). */
     struct fiemap *fiemap;
     if ((fiemap = malloc(sizeof(struct fiemap))) == NULL) {
         fprintf(stderr, "failed to allocate fiemap (1)\n");
         goto skip_fiemap;
     }
 
-    printf("B\n");
-
+    /* Get fiemap (no extents). */
     memset(fiemap, 0, sizeof(struct fiemap));
     fiemap->fm_length = ~0;
     if (ioctl(e->fd, FS_IOC_FIEMAP, fiemap) < 0) {
@@ -238,17 +235,14 @@ async_perform_io(lstate_t *ld, entry_t *e)
     unsigned int n_extents = fiemap->fm_mapped_extents;
     free(fiemap);
 
-    printf("C\n");
-
-    /* Get the fiemap (with extents). */
+    /* Allocate fiemap (with extents). */
     size_t extents_size = sizeof(struct fiemap_extent) * n_extents;
     if ((fiemap = malloc(sizeof(struct fiemap) + extents_size)) == NULL) {
         fprintf(stderr, "failed to allocate fiemap (2)\n");
         goto skip_fiemap;
     }
 
-    printf("D\n");
-
+    /* Get fiemap (with extents). */
     memset(fiemap->fm_extents, 0, extents_size);
     fiemap->fm_length = ~0;
     fiemap->fm_extent_count = n_extents;
@@ -257,8 +251,6 @@ async_perform_io(lstate_t *ld, entry_t *e)
         free(fiemap);
         goto skip_fiemap;
     }
-
-    printf("E\n");
 
     printf("File %s... (%u extents)\n", e->path, fiemap->fm_mapped_extents);
     for (unsigned int i = 0; i < fiemap->fm_mapped_extents; i++) {
