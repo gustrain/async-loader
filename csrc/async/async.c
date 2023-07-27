@@ -225,12 +225,12 @@ async_perform_io(lstate_t *ld, entry_t *e)
         goto skip_fiemap;
     }
 
-    printf("File %s ... (%ld extents)\n", fiemap.fm_extent_count);
+    printf("File %s ... (%u extents)\n", e->path, fiemap.fm_extent_count);
     for (unsigned int i = 0; i < fiemap.fm_extent_count; i++) {
-        printf("\t...extents[%ld].physical = %llu\n", i, fiemap.fm_extents[i].fe_physical);
+        printf("\t...extents[%u].physical = %llu\n", i, fiemap.fm_extents[i].fe_physical);
     }
     for (unsigned int i = 0; i < fiemap.fm_extent_count; i++) {
-        printf("\t...extents[%ld].logical = %llu\n", i, fiemap.fm_extents[i].fe_logical);
+        printf("\t...extents[%u].logical = %llu\n", i, fiemap.fm_extents[i].fe_logical);
     }
 
    skip_fiemap:
