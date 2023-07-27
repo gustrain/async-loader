@@ -217,49 +217,17 @@ async_perform_io(lstate_t *ld, entry_t *e)
     }
     e->size = (((size_t) size) | 0xFFF) + 1;
 
-    /* Allocate fiemap (no extents). */
-    struct fiemap *fiemap;
-    if ((fiemap = malloc(sizeof(struct fiemap))) == NULL) {
-        fprintf(stderr, "failed to allocate fiemap (1)\n");
-        goto skip_fiemap;
-    }
-
-    /* Get fiemap (no extents). */
+    /* Get fiemap with first extent. */
+    uint8_t stack_mem[sizeof(struct fiemap) + sizeof(struct fiemap_extent)];
+    struct fiemap *fiemap = (struct fiemap *) stack_mem;
     memset(fiemap, 0, sizeof(struct fiemap));
     fiemap->fm_length = ~0;
+    fiemap->fm_extent_count = 1;
     if (ioctl(e->fd, FS_IOC_FIEMAP, fiemap) < 0) {
         fprintf(stderr, "failed to get fiemap (1); %s\n", strerror(errno));
-        free(fiemap);
-        goto skip_fiemap;
+    } else {
+        printf("%s extents[0].physical = %llx\n", e->path, fiemap->fm_extents[0].fe_physical);
     }
-    unsigned int n_extents = fiemap->fm_mapped_extents;
-    free(fiemap);
-
-    /* Allocate fiemap (with extents). */
-    size_t extents_size = sizeof(struct fiemap_extent) * n_extents;
-    if ((fiemap = malloc(sizeof(struct fiemap) + extents_size)) == NULL) {
-        fprintf(stderr, "failed to allocate fiemap (2)\n");
-        goto skip_fiemap;
-    }
-
-    /* Get fiemap (with extents). */
-    memset(fiemap->fm_extents, 0, extents_size);
-    fiemap->fm_length = ~0;
-    fiemap->fm_extent_count = n_extents;
-    if (ioctl(e->fd, FS_IOC_FIEMAP, fiemap) < 0) {
-        fprintf(stderr, "failed to get fiemap (2); %s\n", strerror(errno));
-        free(fiemap);
-        goto skip_fiemap;
-    }
-
-    printf("File %s... (%u extents)\n", e->path, fiemap->fm_mapped_extents);
-    for (unsigned int i = 0; i < fiemap->fm_mapped_extents; i++) {
-        printf("\t...extents[%u].physical = 0x%llx\n", i, fiemap->fm_extents[i].fe_physical);
-    }
-
-    free(fiemap);
-
-   skip_fiemap:
 
     /* Prepare the filepath according to shm requirements. */
     e->shm_fp[0] = '/';
