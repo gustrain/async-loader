@@ -311,6 +311,9 @@ async_reader_loop(void *arg)
 
             /* Explicitly tell io_uring to begin processing. */
             io_uring_submit(&ld->ring);
+
+            /* Reset queue counter. */
+            ld->n_queued = 0;
         }
 
         /* Pop an item from the ready list. Racy check to avoid hogging lock. */
