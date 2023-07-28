@@ -297,7 +297,7 @@ async_reader_loop(void *arg)
        N_QUEUED reaching DISPATCH_N. Simply sets SIGNALLED, to indicate to the
        loader that it must submit on the next loop iteration. */
     void *prev = (void *) signal(SIGUSR1, async_reader_sig_handler);
-    printf("signal returned %p\n", prev);
+    printf("signal returned %p (sigerr = %p)\n", prev, SIG_ERR);
 
     /* Loop through the outer states array round-robin style, issuing one IO per
        visit to each worker's queue, if that queue has a valid request. */
