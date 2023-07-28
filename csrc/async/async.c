@@ -187,6 +187,23 @@ file_get_size(int fd)
     return -1;
 }
 
+/* Get the logical block address for the first exent of the given FD. */
+static uint64_t
+file_get_lba(int fd)
+{
+    /* Get fiemap with first extent. */
+    uint8_t stack_mem[sizeof(struct fiemap) + sizeof(struct fiemap_extent)];
+    struct fiemap *fiemap = (struct fiemap *) stack_mem;
+    memset(fiemap, 0, sizeof(struct fiemap));
+    fiemap->fm_length = ~0;
+    fiemap->fm_extent_count = 1;
+    if (ioctl(fd, FS_IOC_FIEMAP, fiemap) < 0) {
+        fprintf(stderr, "ioctl failed (fd = %d); %s\n", fd, strerror(errno));
+    } else {
+        return fiemap->fm_extents[0].fe_physical;
+    }
+}
+
 /* Submits an AIO for the file at PATH, allocating an shm object of equal size
    to the file for the data to be read into. Saves the file descriptor to FD.
    On success, returns 0. On failure, returns negative ERRNO value. */
@@ -200,15 +217,6 @@ async_perform_io(lstate_t *ld, entry_t *e)
         e->shm_lmapped = false;
     }
 
-    /* Path must not be empty. */
-    assert(e->path[0] != '\0');
-
-    /* Open the file, get and check size. */
-    if ((e->fd = open(e->path, O_RDONLY)) < 0) {
-        fprintf(stderr, "failed to open %s\n", e->path);
-        return -errno;
-    };
-
     /* Get the file's size. */
     off_t size = file_get_size(e->fd);
     if (size < 0) {
@@ -216,18 +224,6 @@ async_perform_io(lstate_t *ld, entry_t *e)
         return (int) size;
     }
     e->size = (((size_t) size) | 0xFFF) + 1;
-
-    /* Get fiemap with first extent. */
-    uint8_t stack_mem[sizeof(struct fiemap) + sizeof(struct fiemap_extent)];
-    struct fiemap *fiemap = (struct fiemap *) stack_mem;
-    memset(fiemap, 0, sizeof(struct fiemap));
-    fiemap->fm_length = ~0;
-    fiemap->fm_extent_count = 1;
-    if (ioctl(e->fd, FS_IOC_FIEMAP, fiemap) < 0) {
-        fprintf(stderr, "ioctl failed (%s); %s\n", e->path, strerror(errno));
-    } else {
-        e->lba = fiemap->fm_extents[0].fe_physical;
-    }
 
     /* Prepare the filepath according to shm requirements. */
     e->shm_fp[0] = '/';
@@ -270,7 +266,6 @@ async_perform_io(lstate_t *ld, entry_t *e)
     struct io_uring_sqe *sqe = io_uring_get_sqe(&ld->ring);
     io_uring_prep_read(sqe, e->fd, e->shm_ldata, e->size, 0);
     io_uring_sqe_set_data(sqe, e);  /* Associate request with this entry. */
-    io_uring_submit(&ld->ring);
 
     return 0;
 }
@@ -281,29 +276,57 @@ async_reader_loop(void *arg)
 {
     lstate_t *ld = (lstate_t *) arg;
 
+    /* Register a signal handler for submission (SIGUSR1). This will be
+       signalled by workers when they require IO to be submitted prior to
+       N_QUEUED reaching DISPATCH_N. Simply sets SIGNALLED, to indicate to the
+       loader that it must submit on the next loop iteration. */
+    
+
     /* Loop through the outer states array round-robin style, issuing one IO per
        visit to each worker's queue, if that queue has a valid request. */
     size_t i = 0;
     entry_t *e = NULL;
     while (true) {
-        wstate_t *st = &ld->states[i++ % ld->n_states];
+        /* Check if we need to submit to io_uring. */
+        if (ld->n_queued == ld->dispatch_n || ld->signalled) {
+            /* Sort the request queue by LBA. */
+            sort(ld->sortable, ld->n_queued);
+
+            /* Issue IO for each queued request. */
+            for (size_t i = 0; i < ld->n_queued; i++) {
+                int status = async_perform_io(ld, e);
+                if (status < 0) {
+                    /* What to do on failure? */
+                    fprintf(stderr,
+                            "reader failed to issue IO; %s; %s; %s.\n",
+                            e->path,
+                            e->shm_fp,
+                            strerror(-status));
+                    fifo_push(&e->worker->ready, &e->worker->ready_lock, e);
+                }
+            }
+
+            /* Explicitly tell io_uring to begin processing. */
+            io_uring_submit(&ld->ring);
+        }
 
         /* Pop an item from the ready list. Racy check to avoid hogging lock. */
+        wstate_t *st = &ld->states[i++ % ld->n_states];
         if ((e = fifo_pop(&st->ready, &st->ready_lock)) == NULL) {
             continue;
         }
-
-        /* Issue the IO for this entry's filepath. */
-        int status = async_perform_io(ld, e);
-        if (status < 0) {
-            /* What to do on failure? */
-            fprintf(stderr,
-                    "reader failed to issue IO; %s; %s; %s.\n",
-                    e->path,
-                    e->shm_fp,
-                    strerror(-status));
+        
+        /* Open file. */
+        if ((e->fd = open(e->path, O_RDONLY)) < 0) {
+            fprintf(stderr, "failed to open %s\n", e->path);
             fifo_push(&st->ready, &st->ready_lock, e);
-        }
+            continue;
+        };
+
+        /* Queue for next bulk submission. */
+        sort_wrapper_t *w = &ld->wrappers[ld->n_queued++];
+        w->data = (void *) e;
+        w->key = file_get_lba(e->fd);
     }
 
     return NULL;

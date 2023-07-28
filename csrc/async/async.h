@@ -86,9 +86,9 @@ typedef struct worker_state {
     entry_t *completed;     /* Queue entries with completed IO. */
 
     /* Synchronization. */
-    pthread_spinlock_t free_lock;       /* Protects FREE. */
-    pthread_spinlock_t ready_lock;      /* Protects READY. */
-    pthread_spinlock_t completed_lock;  /* Protects COMPLETED. */
+    pthread_spinlock_t  free_lock;          /* Protects FREE. */
+    pthread_spinlock_t  ready_lock;         /* Protects READY. */
+    pthread_spinlock_t  completed_lock;     /* Protects COMPLETED. */
 } wstate_t;
 
 /* Loader (reader + responder) state. */
@@ -99,6 +99,8 @@ typedef struct {
     size_t          dispatch_n;     /* Minimum N_QUEUED value to submit IO. */
     size_t          total_size;     /* Total memory allocated. For clean up. */
     struct io_uring ring;           /* Submission ring buffer for liburing. */
+    bool            signalled;      /* Whether we've been signalled to submit
+                                       the queued requests early. */
 
     /* LBA sorting. */
     sort_wrapper_t  *wrappers;  /* Array of sort_wrapper_t structs to be

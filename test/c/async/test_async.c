@@ -138,10 +138,10 @@ test_config(size_t queue_depth,
 int
 main(int argc, char **argv)
 {
-    size_t queue_depth    = 32;
+    size_t n_filepaths    = 4;
+    size_t queue_depth    = n_filepaths;
     size_t max_file_size  = 1024 * 1024;
     size_t min_dispatch_n = queue_depth;
-    size_t n_filepaths    = 4;
     char *filepaths[] = {
         "Makefile",
         "async",
