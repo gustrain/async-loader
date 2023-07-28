@@ -40,6 +40,7 @@
 #include <sys/syscall.h>
 #include <liburing.h>
 #include <string.h>
+#include <signal.h>
 #include <time.h>
 #include <linux/fs.h>
 #include <linux/fiemap.h>
@@ -295,7 +296,8 @@ async_reader_loop(void *arg)
        signalled by workers when they require IO to be submitted prior to
        N_QUEUED reaching DISPATCH_N. Simply sets SIGNALLED, to indicate to the
        loader that it must submit on the next loop iteration. */
-    signal(SIGUSR1, async_reader_sig_handler);
+    void *prev = (void *) signal(SIGUSR1, async_reader_sig_handler);
+    printf("signal returned %p\n", prev);
 
     /* Loop through the outer states array round-robin style, issuing one IO per
        visit to each worker's queue, if that queue has a valid request. */
