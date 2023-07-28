@@ -221,11 +221,7 @@ Worker_request(Worker *self, PyObject *args, PyObject *kwds)
 static PyObject *
 Worker_submit(Worker *self, PyObject *args, PyObject *kwds)
 {
-   if (self->worker->lpid == -1) {
-      return PyBool_FromLong(0L);
-   }
-
-   kill(self->worker->lpid, SIGUSR1);
+   self->worker->loader->signalled = true;
 
    return PyBool_FromLong(1L);
 }

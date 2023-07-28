@@ -46,16 +46,14 @@ Worker context. Provides an interface to the loader for the given worker.
 
 #### `Worker.request(filepath: str) -> bool`
 
-Request a filepath to be loaded.
+Request a filepath to be loaded. Returns `True` on success, `False` on failure.
 
 #### `Worker.submit() -> bool`
 
 Force the loader to eagerly submit IO for all currently queued requests (across
 all workers). Should be called when this worker has submitted < `min_dispatch_n`
-requests, and needs those requests to terminate in order to continue.
-
-Returns `True` on success, and `False` on failure. Failure will only occur if
-the loader process has not yet initialized the internal `lpid` field.
+requests, and needs those requests to terminate in order to continue. Always
+returns `True`.
 
 #### `Worker.try_get() -> AsyncLoader.Entry`
 

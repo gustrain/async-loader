@@ -66,8 +66,7 @@ typedef struct queue_entry {
 
 /* Worker state. Input/output queues unique to that worker. */
 typedef struct worker_state {
-    pid_t lpid;     /* Loader process' PID. Initialized to -1, until the loader
-                       process is initialized and sets this value. */
+    struct loader_state *loader;    /* Loader's state struct. */
 
     /* Input buffer. */
     size_t   capacity;  /* Total number of entries in QUEUE. */
@@ -95,7 +94,7 @@ typedef struct worker_state {
 } wstate_t;
 
 /* Loader (reader + responder) state. */
-typedef struct {
+typedef struct loader_state {
     wstate_t       *states;         /* N_STATES worker states. */
     size_t          n_states;       /* Worker states in STATES. */
     size_t          n_queued;       /* Number of requests queued in WRAPPERS. */
