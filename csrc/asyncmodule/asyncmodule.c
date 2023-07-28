@@ -284,7 +284,7 @@ static PyMethodDef Worker_methods[] = {
       (PyCFunction) Worker_submit,
       METH_NOARGS,
       "Signal loader to submit all queued requests."
-   }
+   },
    {
       "try_get",
       (PyCFunction) Worker_try_get,
