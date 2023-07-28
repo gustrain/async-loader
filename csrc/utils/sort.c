@@ -40,12 +40,12 @@ sort_small(sort_wrapper_t **to_sort, size_t n)
 {
     /* In each iteration, add ith element to the sorted array. We start with
        a singleton array, because a singleton array is always sorted. */
-    for (int64_t i = 1; i < n; i++) {
+    for (uint64_t i = 1; i < n; i++) {
         sort_wrapper_t *elem = to_sort[i];
 
         /* Because sorted array is ascending, the first element which is ELEM
            is larger than occupies the spot where ELEM should go. */
-        for (int64_t j = i - 1; j >= 0; j--) {
+        for (int64_t j = ((int64_t) i) - 1; j >= 0; j--) {
             if (elem->key <= to_sort[j]->key &&
                 (j == 0 || elem->key > to_sort[j - 1]->key)) {
                 /* Move everything to the right and insert ELEM. */
