@@ -310,8 +310,8 @@ async_reader_loop(void *arg)
                 ld->sortable[j] = &ld->wrappers[j];
             }
 
-            /* Sort the request queue by LBA. */
-            sort(ld->sortable, ld->n_queued);
+            // /* Sort the request queue by LBA. */
+            // sort(ld->sortable, ld->n_queued);
 
             /* Issue IO for each queued request. */
             for (size_t i = 0; i < ld->n_queued; i++) {
