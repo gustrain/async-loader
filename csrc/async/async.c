@@ -278,8 +278,6 @@ async_perform_io(lstate_t *ld, entry_t *e)
 static void
 async_reader_sig_handler(int sig)
 {
-    fprintf(stderr, "got a signal %d\n", sig);
-
     if (sig == SIGUSR1) {
         gloader->signalled = true;
     }
@@ -297,7 +295,6 @@ async_reader_loop(void *arg)
        N_QUEUED reaching DISPATCH_N. Simply sets SIGNALLED, to indicate to the
        loader that it must submit on the next loop iteration. */
     void *prev = (void *) signal(SIGUSR1, async_reader_sig_handler);
-    printf("signal returned %p (sigerr = %p)\n", prev, SIG_ERR);
 
     /* Enable signalling for workers by setting LPID fields. */
     pid_t pid = getpid();
