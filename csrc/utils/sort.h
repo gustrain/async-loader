@@ -31,8 +31,8 @@
 typedef struct sort_entry {
     uint64_t  key;      /* Sort key. */
     void     *data;     /* Associated data. */
-} sortable_t;
+} sort_wrapper_t;
 
-void sort(sortable_t **to_sort, size_t n);
+void sort(sort_wrapper_t **to_sort, size_t n);
 
 #endif

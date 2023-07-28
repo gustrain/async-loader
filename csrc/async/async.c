@@ -384,33 +384,38 @@ async_init(lstate_t *loader,
            size_t min_dispatch_n)
 {
     /* Figure out how much memory to allocate. */
-    size_t entry_size = sizeof(entry_t);
+    size_t entry_size = sizeof(entry_t) + sizeof(sort_wrapper_t) + sizeof(sort_wrapper_t *);
     size_t queue_size = entry_size * queue_depth;
     size_t worker_size = queue_size + sizeof(wstate_t);
     size_t total_size = worker_size * n_workers;
+    size_t n_entries = n_workers * queue_depth;
 
     /* Do the allocation. */
     if ((loader->states = mmap_alloc(total_size)) == NULL) {
         return -ENOMEM;
     }
 
-    /*   LO            HI
-        ┌────────┬───────┐
-        │wstate_t│entry_t│
-        │structs │structs│
-        └┬───────┴┬──────┘
-         │        │
-         │        │
-         │        │
+    /*   LO                                          HI
+        ┌────────┬───────┬──────────────┬──────────────┐
+        │wstate_t│entry_t│sort_wrapper_t│sort_wrapper_t│
+        │structs │structs│structs       │pointers      │
+        └┬───────┴┬──────┴┬─────────────┴┬─────────────┘
+         │        │       │              │
+         │        │       │              └►n_workers * queue_depth * sizeof(sort_wrapper_t *)
+         │        │       └►n_workers * queue_depth * sizeof(sort_wrapper_t)
          │        └►n_workers * queue_depth * sizeof(entry_t)
          └►n_workers * sizeof(wstate_t)
     */
 
     /* Sizes of each region. */
     size_t state_bytes = n_workers * sizeof(wstate_t);
+    size_t entry_bytes = n_entries * sizeof(entry_t);
+    size_t sorts_bytes = n_entries * sizeof(sort_wrapper_t);
 
     /* Addresses of each region. */
-    entry_t *entry_start = (entry_t *) ((uint8_t *) loader->states + state_bytes);
+    entry_t         *entry_start = (entry_t *) ((uint8_t *) loader->states + state_bytes);
+    sort_wrapper_t  *sorts_start = (sort_wrapper_t *) ((uint8_t *) entry_start + entry_bytes);
+    sort_wrapper_t **sortp_start = (sort_wrapper_t **) ((uint8_t *) sorts_start + sorts_bytes);
 
     /* Assign all of the correct locations to each state/queue. */
     size_t entry_n = 0;
@@ -457,8 +462,18 @@ async_init(lstate_t *loader,
         pthread_spin_init(&state->completed_lock, PTHREAD_PROCESS_SHARED);
     }
 
+    /* Initialize the LBA sorting arrays. */
+    loader->wrappers = sorts_start;
+    loader->sortable = sortp_start;
+    for (size_t i = 0; i < n_entries; i++) {
+        loader->wrappers[i].data = NULL;
+        loader->wrappers[i].key = 0;
+        loader->sortable[i] = &loader->wrappers[i];
+    }
+
     /* Set the loader's config states. */
     loader->n_states = n_workers;
+    loader->n_queued = 0;
     loader->dispatch_n = min_dispatch_n;
     loader->total_size = total_size;
 
@@ -466,7 +481,7 @@ async_init(lstate_t *loader,
        memory because while worker interact with the shared queues, the IO
        submissions (thus interactions with liburing) are done only by this
        reader/responder process. */
-    int status = io_uring_queue_init((unsigned int) (n_workers * queue_depth),
+    int status = io_uring_queue_init((unsigned int) n_entries,
                                      &loader->ring,
                                      0);
     if (status < 0) {

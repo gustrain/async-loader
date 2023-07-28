@@ -24,6 +24,8 @@
 #ifndef __ASYNC_LOADER_MODULE_H_
 #define __ASYNC_LOADER_MODULE_H_
 
+#include "../utils/sort.h"
+
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -93,9 +95,15 @@ typedef struct worker_state {
 typedef struct {
     wstate_t       *states;         /* N_STATES worker states. */
     size_t          n_states;       /* Worker states in STATES. */
-    size_t          dispatch_n;     /* Async IO requests to send at once. */
+    size_t          n_queued;       /* Number of requests queued in WRAPPERS. */
+    size_t          dispatch_n;     /* Minimum N_QUEUED value to submit IO. */
     size_t          total_size;     /* Total memory allocated. For clean up. */
     struct io_uring ring;           /* Submission ring buffer for liburing. */
+
+    /* LBA sorting. */
+    sort_wrapper_t  *wrappers;  /* Array of sort_wrapper_t structs to be
+                                   configured prior to sorting. */
+    sort_wrapper_t **sortable;  /* Sortable array of sort_wrapper_t pointers. */
 } lstate_t;
 
 

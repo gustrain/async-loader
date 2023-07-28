@@ -44,13 +44,13 @@ main(int argc, char **argv)
     };
 
     /* Set up wrappers. */
-    sortable_t wrappers[N_KEYS];
+    sort_wrapper_t wrappers[N_KEYS];
     for (size_t i = 0; i < N_KEYS; i++) {
         wrappers[i].key = keys_random[i];
     }
 
     /* Set up array of pointers. */
-    sortable_t *ptrs[N_KEYS];
+    sort_wrapper_t *ptrs[N_KEYS];
     for (size_t i = 0; i < N_KEYS; i++) {
         ptrs[i] = &wrappers[i];
     }
