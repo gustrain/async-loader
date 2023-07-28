@@ -306,11 +306,6 @@ async_reader_loop(void *arg)
         /* Check if we need to submit to io_uring. */
         unsigned long long eager = atomic_load(&ld->eager);
         if (ld->n_queued == ld->dispatch_n || (ld->n_queued > 0 && eager)) {
-            /* Reset the to-be-sorted array. */
-            for (size_t j = 0; j < ld->n_queued; j++) {
-                ld->sortable[j] = &ld->wrappers[j];
-            }
-
             printf("dispatch_n = %lu, n_queued = %lu, eager = %lu\n",
                    ld->n_queued, ld->dispatch_n, eager);
 
@@ -356,7 +351,7 @@ async_reader_loop(void *arg)
         };
 
         /* Queue for next bulk submission. */
-        sort_wrapper_t *w = &ld->wrappers[ld->n_queued++];
+        sort_wrapper_t *w = ld->sortable[ld->n_queued++];
         w->data = (void *) e;
         w->key = file_get_lba(e->fd);
     }
