@@ -306,8 +306,8 @@ async_reader_loop(void *arg)
         /* Check if we need to submit to io_uring. */
         unsigned long long eager = atomic_load(&ld->eager);
         if (ld->n_queued == ld->dispatch_n || (ld->n_queued > 0 && eager)) {
-            printf("dispatch_n = %lu, n_queued = %lu, eager = %llu\n",
-                   ld->n_queued, ld->dispatch_n, eager);
+            // printf("dispatch_n = %lu, n_queued = %lu, eager = %llu\n",
+            //        ld->n_queued, ld->dispatch_n, eager);
 
             /* Sort the request queue by LBA. */
             sort(ld->sortable, ld->n_queued);
@@ -315,7 +315,6 @@ async_reader_loop(void *arg)
             /* Issue IO for each queued request. */
             for (size_t i = 0; i < ld->n_queued; i++) {
                 e = (entry_t *) ld->sortable[i]->data;
-                printf("submitting for %s\n", e->path);
 
                 int status = async_perform_io(ld, e);
                 if (status < 0) {
