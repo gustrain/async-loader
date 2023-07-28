@@ -59,16 +59,16 @@ def load_async_worker_loop(filepaths: List[str], batch_size: int, worker: al.Wor
                 print("Worker request failed")
 
         # Request immediate submission for final batch.
-        if partial_batch:
-            worker.set_eager(True)
+        # if partial_batch:
+        #     worker.set_eager(True)
 
         # Retrieve results
         for _ in range(n_this_batch):
             entry = worker.wait_get()
             entry.release()
 
-        if partial_batch:
-            worker.set_eager(False)
+        # if partial_batch:
+        #     worker.set_eager(False)
 
 # Load all files in FILEPATHS using AsyncLoader with N_WORKERS worker threads.
 def load_async(filepaths: List[str], batch_size: int, max_file_size: int, n_workers: int):
