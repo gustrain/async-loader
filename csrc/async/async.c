@@ -24,6 +24,7 @@
 #include "async.h"
 
 #include "../utils/alloc.h"
+#include "../utils/sort.h"
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
