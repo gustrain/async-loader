@@ -223,12 +223,12 @@ Worker_request(Worker *self, PyObject *args, PyObject *kwds)
 static PyObject *
 Worker_set_eager(Worker *self, PyObject *args, PyObject *kwds)
 {
-   bool eager;
-   static char *kwlist[] = {"eager", NULL};
-   if (!PyArg_ParseTupleAndKeywords(args, kwds, "p", kwlist, &eager)) {
-      PyErr_SetString(PyExc_Exception, "missing/invalid argument");
-      return NULL;
-   }
+   // bool eager;
+   // static char *kwlist[] = {"eager", NULL};
+   // if (!PyArg_ParseTupleAndKeywords(args, kwds, "p", kwlist, &eager)) {
+   //    PyErr_SetString(PyExc_Exception, "missing/invalid argument");
+   //    return NULL;
+   // }
 
    return PyBool_FromLong(0);
 
