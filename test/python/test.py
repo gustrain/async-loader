@@ -57,6 +57,10 @@ def load_async_worker_loop(filepaths: List[str], batch_size: int, worker: al.Wor
             if worker.request(filepath = filepaths.pop()) != True:
                 print("Worker request failed")
 
+        # Request immediate submission for final batch.
+        if n_this_batch < batch_size:
+            worker.submit()
+
         # Retrieve results
         for _ in range(n_this_batch):
             entry = worker.wait_get()
@@ -116,6 +120,10 @@ def verify_worker_loop(filepaths: List[str], batch_size: int, worker: al.Worker,
         for _ in range(n_this_batch):
             if worker.request(filepath = filepaths.pop()) != True:
                 print("Worker request failed")
+
+        # Request immediate submission for final batch.
+        if n_this_batch < batch_size:
+            worker.submit()
 
         # Retrieve results
         for _ in range(n_this_batch):
