@@ -6,8 +6,8 @@ OBJ    = test_sort.o ../../../csrc/utils/sort.o
 %.o: %.c $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
-sort: $(OBJ)
+utils: $(OBJ)
 	$(CC) -o $@ $^ $(CFLAGS)
 
 clean:
-	rm -f sort $(OBJ)
+	rm -f utils $(OBJ)
