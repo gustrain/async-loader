@@ -144,7 +144,7 @@ main(int argc, char **argv)
     size_t n_filepaths    = 4;
     char *filepaths[] = {
         "Makefile",
-        "test",
+        "async",
         "test_async.c",
         "test_async.o",
     };

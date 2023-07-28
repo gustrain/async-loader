@@ -10,4 +10,4 @@ async: $(OBJ)
 	$(CC) -o $@ $^ $(CFLAGS)
 
 clean:
-	rm -f test $(OBJ)
+	rm -f async $(OBJ)
