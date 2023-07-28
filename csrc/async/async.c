@@ -304,11 +304,15 @@ async_reader_loop(void *arg)
     entry_t *e = NULL;
     while (true) {
         /* Check if we need to submit to io_uring. */
-        if (ld->n_queued == ld->dispatch_n || (ld->n_queued > 0 && atomic_load(&ld->eager))) {
+        unsigned long long eager = atomic_load(&ld->eager);
+        if (ld->n_queued == ld->dispatch_n || (ld->n_queued > 0 && eager)) {
             /* Reset the to-be-sorted array. */
             for (size_t j = 0; j < ld->n_queued; j++) {
                 ld->sortable[j] = &ld->wrappers[j];
             }
+
+            printf("dispatch_n = %lu, n_queued = %lu, eager = %lu\n",
+                   ld->n_queued, ld->dispatch_n, eager);
 
             // /* Sort the request queue by LBA. */
             // sort(ld->sortable, ld->n_queued);
