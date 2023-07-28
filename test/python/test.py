@@ -53,18 +53,22 @@ def load_async_worker_loop(filepaths: List[str], batch_size: int, worker: al.Wor
     while filepaths:
         # Submit requests
         n_this_batch = min(batch_size, len(filepaths))
+        partial_batch = n_this_batch < batch_size
         for _ in range(n_this_batch):
             if worker.request(filepath = filepaths.pop()) != True:
                 print("Worker request failed")
 
         # Request immediate submission for final batch.
-        if n_this_batch < batch_size:
-            worker.submit()
+        if partial_batch:
+            worker.set_eager(True)
 
         # Retrieve results
         for _ in range(n_this_batch):
             entry = worker.wait_get()
             entry.release()
+
+        if partial_batch:
+            worker.set_eager(False)
 
 # Load all files in FILEPATHS using AsyncLoader with N_WORKERS worker threads.
 def load_async(filepaths: List[str], batch_size: int, max_file_size: int, n_workers: int):
@@ -117,13 +121,14 @@ def verify_worker_loop(filepaths: List[str], batch_size: int, worker: al.Worker,
 
         # Submit requests
         n_this_batch = min(batch_size, len(filepaths))
+        partial_batch = n_this_batch < batch_size
         for _ in range(n_this_batch):
             if worker.request(filepath = filepaths.pop()) != True:
                 print("Worker request failed")
 
         # Request immediate submission for final batch.
-        if n_this_batch < batch_size:
-            worker.submit()
+        if partial_batch:
+            worker.set_eager(True)
 
         # Retrieve results
         for _ in range(n_this_batch):
@@ -137,6 +142,9 @@ def verify_worker_loop(filepaths: List[str], batch_size: int, worker: al.Worker,
                 match_count += 1
 
             entry.release()
+        
+        if partial_batch:
+            worker.set_eager(False)
     
     print("Worker end. {} matches, {} mismatches".format(match_count, mismatch_count))
 
