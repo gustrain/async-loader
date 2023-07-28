@@ -208,8 +208,9 @@ file_get_lba(int fd)
 }
 
 /* Submits an AIO for the file at PATH, allocating an shm object of equal size
-   to the file for the data to be read into. Saves the file descriptor to FD.
-   On success, returns 0. On failure, returns negative ERRNO value. */
+   to the file for the data to be read into. Assumes FD is already valid. On
+   success, returns 0. On failure, returns negative ERRNO value. 
+   */
 static int
 async_perform_io(lstate_t *ld, entry_t *e)
 {
@@ -223,7 +224,6 @@ async_perform_io(lstate_t *ld, entry_t *e)
     /* Get the file's size. */
     off_t size = file_get_size(e->fd);
     if (size < 0) {
-        close(e->fd);
         return (int) size;
     }
     e->size = (((size_t) size) | 0xFFF) + 1;
@@ -243,7 +243,6 @@ async_perform_io(lstate_t *ld, entry_t *e)
     e->shm_lfd = shm_open(e->shm_fp, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
     if (e->shm_lfd < 0) {
         fprintf(stderr, "failed to shm_open %s\n", e->shm_fp);
-        close(e->fd);
         return -errno;
     }
 
@@ -251,7 +250,6 @@ async_perform_io(lstate_t *ld, entry_t *e)
     if (ftruncate(e->shm_lfd, e->size) < 0) {
         shm_unlink(e->shm_fp);
         close(e->shm_lfd);
-        close(e->fd);
         return -errno;
     }
 
@@ -260,7 +258,6 @@ async_perform_io(lstate_t *ld, entry_t *e)
     if (e->shm_ldata == NULL) {
         shm_unlink(e->shm_fp);
         close(e->shm_lfd);
-        close(e->fd);
         return -ENOMEM;
     }
     e->shm_lmapped = true;
@@ -297,6 +294,8 @@ async_reader_loop(void *arg)
 
             /* Issue IO for each queued request. */
             for (size_t i = 0; i < ld->n_queued; i++) {
+                e = (entry_t *) ld->sortable[i]->data;
+
                 int status = async_perform_io(ld, e);
                 if (status < 0) {
                     /* What to do on failure? */
@@ -305,6 +304,7 @@ async_reader_loop(void *arg)
                             e->path,
                             e->shm_fp,
                             strerror(-status));
+                    close(e->fd);
                     fifo_push(&e->worker->ready, &e->worker->ready_lock, e);
                 }
             }
