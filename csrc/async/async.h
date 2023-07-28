@@ -66,6 +66,8 @@ typedef struct queue_entry {
 
 /* Worker state. Input/output queues unique to that worker. */
 typedef struct worker_state {
+    pid_t ppid;     /* Parent PID, i.e., loader's PID. */
+
     /* Input buffer. */
     size_t   capacity;  /* Total number of entries in QUEUE. */
     entry_t *queue;     /* CAPACITY queue entries. */

@@ -44,6 +44,9 @@
 #include <linux/fs.h>
 #include <linux/fiemap.h>
 
+/* Global pointer to the loader. Set after forking. Used exclusively by the
+   async_reader submission signal handler. */
+lstate_t *gloader;
 
 /* Insert ELEM into a doubly linked list, maintaining FIFO order. */
 static void
@@ -270,17 +273,27 @@ async_perform_io(lstate_t *ld, entry_t *e)
     return 0;
 }
 
+/* Signal handler. Sets loader's SIGNALLED field upon receipt of SIGUSR1. */
+static void
+async_reader_sig_handler(int sig)
+{
+    if (sig == SIGUSR1) {
+        gloader->signalled = true;
+    }
+}
+
 /* Loop for reader thread. */
 static void *
 async_reader_loop(void *arg)
 {
     lstate_t *ld = (lstate_t *) arg;
+    gloader = ld;
 
     /* Register a signal handler for submission (SIGUSR1). This will be
        signalled by workers when they require IO to be submitted prior to
        N_QUEUED reaching DISPATCH_N. Simply sets SIGNALLED, to indicate to the
        loader that it must submit on the next loop iteration. */
-    
+    signal(SIGUSR1, async_reader_sig_handler);
 
     /* Loop through the outer states array round-robin style, issuing one IO per
        visit to each worker's queue, if that queue has a valid request. */
@@ -312,7 +325,8 @@ async_reader_loop(void *arg)
             /* Explicitly tell io_uring to begin processing. */
             io_uring_submit(&ld->ring);
 
-            /* Reset queue counter. */
+            /* Reset submission requirements. */
+            ld->signalled = false;
             ld->n_queued = 0;
         }
 
@@ -479,6 +493,9 @@ async_init(lstate_t *loader,
 
             entry_n++;
         }
+
+        /* Worker's parent's PID, i.e., our PID. */
+        state->ppid = getpid();
 
         /* Initialize status lists. */
         state->free = state->queue;

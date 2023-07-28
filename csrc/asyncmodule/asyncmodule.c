@@ -217,6 +217,15 @@ Worker_request(Worker *self, PyObject *args, PyObject *kwds)
    return PyBool_FromLong(true);
 }
 
+/* Worker method to signal the loader to immediately submit all queued IO. */
+static PyObject *
+Worker_submit(Worker *self, PyObject *args, PyObject *kwds)
+{
+   kill(self->worker->ppid, SIGUSR1);
+
+   return PyLong_FromLong(0L);
+}
+
 /* Worker method to try to get a file. If a file is waiting in the completion
    queue, that file is returned and popped from the queue. Otherwise, None is
    returned. */
@@ -270,6 +279,12 @@ static PyMethodDef Worker_methods[] = {
       METH_VARARGS | METH_KEYWORDS,
       "Request that a file be loaded."
    },
+   {
+      "submit",
+      (PyCFunction) Worker_submit,
+      METH_NOARGS,
+      "Signal loader to submit all queued requests."
+   }
    {
       "try_get",
       (PyCFunction) Worker_try_get,

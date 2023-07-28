@@ -48,6 +48,12 @@ Worker context. Provides an interface to the loader for the given worker.
 
 Request a filepath to be loaded.
 
+#### `Worker.submit()`
+
+Force the loader to eagerly submit IO for all currently queued requests (across
+all workers). Should be called when this worker has submitted < `min_dispatch_n`
+requests, and needs those requests to terminate in order to continue.
+
 #### `Worker.try_get() -> AsyncLoader.Entry`
 
 Attempt to fetch an entry from the completion queue. If an entry is available,
