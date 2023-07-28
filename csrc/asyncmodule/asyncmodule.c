@@ -230,9 +230,7 @@ Worker_set_eager(Worker *self, PyObject *args, PyObject *kwds)
       return NULL;
    }
 
-   return PyBool_FromLong(0);
-
-   // return PyBool_FromLong((long) async_set_eager(self->worker, (bool) eager));
+   return PyBool_FromLong((long) async_set_eager(self->worker, (bool) eager));
 }
 
 /* Worker method to try to get a file. If a file is waiting in the completion
