@@ -315,6 +315,7 @@ async_reader_loop(void *arg)
             /* Issue IO for each queued request. */
             for (size_t i = 0; i < ld->n_queued; i++) {
                 e = (entry_t *) ld->sortable[i]->data;
+                printf("submitting for %s\n", e->path);
 
                 int status = async_perform_io(ld, e);
                 if (status < 0) {
