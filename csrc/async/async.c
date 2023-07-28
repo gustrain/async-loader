@@ -276,12 +276,6 @@ async_reader_loop(void *arg)
 {
     lstate_t *ld = (lstate_t *) arg;
 
-    /* Enable signalling for workers by setting LPID fields. */
-    pid_t pid = getpid();
-    for (size_t i = 0; i < ld->n_states; i++) {
-        ld->states[i].lpid = pid;
-    }
-
     /* Loop through the outer states array round-robin style, issuing one IO per
        visit to each worker's queue, if that queue has a valid request. */
     size_t i = 0;
