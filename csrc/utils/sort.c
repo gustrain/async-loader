@@ -38,18 +38,19 @@
 static void
 sort_small(sortable_t **to_sort, size_t n)
 {
-    /* In each iteration, add ith element to the sorted array. */
-    for (size_t i = 0; i < n; i++) {
+    /* In each iteration, add ith element to the sorted array. We start with
+       a singleton array, because a singleton array is always sorted. */
+    for (int64_t i = 1; i < n; i++) {
         sortable_t *elem = to_sort[i];
-
 
         /* Because sorted array is ascending, the first element which is ELEM
            is larger than occupies the spot where ELEM should go. */
-        for (size_t j = i - 1; j >= 0; j--) {
-            if (to_sort[i]->key > to_sort[j]->key) {
+        for (int64_t j = i - 1; j >= 0; j--) {
+            if (elem->key <= to_sort[j]->key &&
+                (j == 0 || elem->key > to_sort[j - 1]->key)) {
                 /* Move everything to the right and insert ELEM. */
-                memcpy(&to_sort[i + 2], &to_sort[i + 1], sizeof(sortable_t *) * i - j);
-                to_sort[i + 1] = elem;
+                memcpy(&to_sort[j + 1], &to_sort[j], sizeof(sortable_t *) * (i - j));
+                to_sort[j] = elem;
                 break;
             }
         }
@@ -58,7 +59,7 @@ sort_small(sortable_t **to_sort, size_t n)
 
 /* Merge two sorted arrays into a single sorted array, O(n). LEFT and RIGHT
    must be contigious in memory. */
-void
+static void
 merge(sortable_t **left, sortable_t **right, size_t n_left, size_t n_right)
 {
     size_t n = n_left + n_right;
@@ -89,15 +90,19 @@ merge(sortable_t **left, sortable_t **right, size_t n_left, size_t n_right)
         }
 
         /* Otherwise, advance the pointers. */
-        merged[i] = left[lptr]->key >= right[rptr]->key ?
+        merged[i] = left[lptr]->key <= right[rptr]->key ?
                     left[lptr++] :
                     right[rptr++];
     }
+
+    /* Copy output into input. */
+    memcpy(left, merged, n * sizeof(sortable_t *));
 
     /* Copy MERGED back into the input array. */
     if (merged_size > MAX_STACK_BYTES) {
         free(merged);
     }
+
 }
 
 /* Sort the N items in TO_SORT in ascending order. */

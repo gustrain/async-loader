@@ -28,8 +28,8 @@
 #include <unistd.h>
 #include <signal.h>
 #include <sys/wait.h>
-#include "../../csrc/utils/alloc.h"
-#include "../../csrc/async/async.h"
+#include "../../../csrc/utils/alloc.h"
+#include "../../../csrc/async/async.h"
 
 
 /* Generic worker process. */
