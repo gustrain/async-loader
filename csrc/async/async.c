@@ -299,6 +299,12 @@ async_reader_loop(void *arg)
     void *prev = (void *) signal(SIGUSR1, async_reader_sig_handler);
     printf("signal returned %p (sigerr = %p)\n", prev, SIG_ERR);
 
+    /* Enable signalling for workers by setting LPID fields. */
+    pid_t pid = getpid();
+    for (size_t i = 0; i < ld->n_states; i++) {
+        ld->states[i].lpid = pid;
+    }
+
     /* Loop through the outer states array round-robin style, issuing one IO per
        visit to each worker's queue, if that queue has a valid request. */
     size_t i = 0;
@@ -469,6 +475,7 @@ async_init(lstate_t *loader,
     for (size_t i = 0; i < n_workers; i++) {
         wstate_t *state = &loader->states[i];
 
+        state->lpid = -1;
         state->capacity = queue_depth;
 
         /* Assign memory for queues and file data. */
@@ -497,9 +504,6 @@ async_init(lstate_t *loader,
 
             entry_n++;
         }
-
-        /* Worker's parent's PID, i.e., our PID. */
-        state->ppid = getpid();
 
         /* Initialize status lists. */
         state->free = state->queue;

@@ -221,9 +221,13 @@ Worker_request(Worker *self, PyObject *args, PyObject *kwds)
 static PyObject *
 Worker_submit(Worker *self, PyObject *args, PyObject *kwds)
 {
-   kill(self->worker->ppid, SIGUSR1);
+   if (self->worker->lpid == -1) {
+      return PyBool_FromLong(0L);
+   }
 
-   return PyLong_FromLong(0L);
+   kill(self->worker->lpid, SIGUSR1);
+
+   return PyBool_FromLong(1L);
 }
 
 /* Worker method to try to get a file. If a file is waiting in the completion
