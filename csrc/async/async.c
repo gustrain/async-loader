@@ -294,7 +294,7 @@ async_reader_loop(void *arg)
        signalled by workers when they require IO to be submitted prior to
        N_QUEUED reaching DISPATCH_N. Simply sets SIGNALLED, to indicate to the
        loader that it must submit on the next loop iteration. */
-    void *prev = (void *) signal(SIGUSR1, async_reader_sig_handler);
+    signal(SIGUSR1, async_reader_sig_handler);
 
     /* Enable signalling for workers by setting LPID fields. */
     pid_t pid = getpid();
