@@ -1,7 +1,7 @@
 CC     = gcc
 CFLAGS = -Wall -g
 DEPS   = ../../../csrc/utils/sort.h
-OBJ    = test_sort.o ../../../csrc/utils/sort.o
+OBJ    = test_utils.o ../../../csrc/utils/sort.o
 
 %.o: %.c $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)
