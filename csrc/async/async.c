@@ -320,10 +320,11 @@ async_reader_loop(void *arg)
                 if (status < 0) {
                     /* What to do on failure? */
                     fprintf(stderr,
-                            "reader failed to issue IO; %s; %s; %s.\n",
+                            "reader failed to issue IO; %s; %s; %s (fd = %d).\n",
                             e->path,
                             e->shm_fp,
-                            strerror(-status));
+                            strerror(-status),
+                            e->fd);
                     close(e->fd);
                     fifo_push(&e->worker->ready, &e->worker->ready_lock, e);
                 }
@@ -372,9 +373,8 @@ async_responder_loop(void *arg)
         /* Remove an entry from the completion queue. */
         int status = io_uring_wait_cqe(&ld->ring, &cqe);
         if (status < 0) {
-            fprintf(stderr,
-                    "io_uring_wait_cqe failed; %s.\n",
-                    strerror(-status));
+            /* It is OK for io_uring_wait_cqe to fail. For example, if a worker
+               signals for immediate submission while waiting, it will fail. */
             continue;
         } else if (cqe->res < 0) {
             entry_t *e = io_uring_cqe_get_data(cqe);
