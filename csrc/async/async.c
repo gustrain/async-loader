@@ -283,6 +283,11 @@ async_reader_loop(void *arg)
     while (true) {
         /* Check if we need to submit to io_uring. */
         if (ld->n_queued == ld->dispatch_n || ld->signalled) {
+            /* Reset the to-be-sorted array. */
+            for (size_t j = 0; j < ld->n_queued; j++) {
+                ld->sortable[j] = &ld->wrappers[j];
+            }
+
             /* Sort the request queue by LBA. */
             sort(ld->sortable, ld->n_queued);
 
