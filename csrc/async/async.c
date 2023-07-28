@@ -133,7 +133,7 @@ async_set_eager(wstate_t *state, bool eager)
     if (eager) {
         atomic_fetch_add(&state->loader->eager, 1);
     } else {
-        atomic_fetch_dec(&state->loader->eager, 1);
+        atomic_fetch_sub(&state->loader->eager, 1);
     }
 
     return true;
