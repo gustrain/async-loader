@@ -192,7 +192,7 @@ def main():
 
     # Get async loading time(s)
     worker_configs = [1]
-    batch_configs = [4, 8, 16, 32, 64, 128, 256, 512, 1024]
+    batch_configs = [4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192]
     for n_workers in worker_configs:
         for batch_size in batch_configs:
             os.system("sudo ./clear_cache.sh")
