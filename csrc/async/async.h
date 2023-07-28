@@ -67,6 +67,8 @@ typedef struct queue_entry {
 /* Worker state. Input/output queues unique to that worker. */
 typedef struct worker_state {
     struct loader_state *loader;    /* Loader's state struct. */
+    bool                 eager;     /* Flag indicating if this worker is
+                                       currently requesting eager submission. */
 
     /* Input buffer. */
     size_t   capacity;  /* Total number of entries in QUEUE. */
@@ -101,17 +103,18 @@ typedef struct loader_state {
     size_t          dispatch_n;     /* Minimum N_QUEUED value to submit IO. */
     size_t          total_size;     /* Total memory allocated. For clean up. */
     struct io_uring ring;           /* Submission ring buffer for liburing. */
-    bool            signalled;      /* Whether we've been signalled to submit
-                                       the queued requests early. */
-
-    /* LBA sorting. */
-    sort_wrapper_t  *wrappers;  /* Array of sort_wrapper_t structs to be
-                                   configured prior to sorting. */
-    sort_wrapper_t **sortable;  /* Sortable array of sort_wrapper_t pointers. */
+    atomic_ullong   eager;          /* Number of workers currently requesting
+                                       eager submission. Eager submission is
+                                       activated if EAGER > 0.*/
+    sort_wrapper_t  *wrappers;      /* Array of sort_wrapper_t structs to be
+                                       configured prior to sorting. */
+    sort_wrapper_t **sortable;      /* Sortable array of sort_wrapper_t
+                                       pointers for LBA sorting. */
 } lstate_t;
 
 
 bool async_try_request(wstate_t *state, char *path);
+bool async_set_eager(wstate_t *state, bool eager);
 entry_t *async_try_get(wstate_t *state);
 void async_release(entry_t *e);
 

@@ -27,6 +27,8 @@
 #include "../async/async.h"
 #include "../utils/alloc.h"
 
+#include <stdatomic.h>
+
 /* Input validation. */
 #define ARG_CHECK(valid_condition, error_string, return_fail)                  \
    if (!(valid_condition)) {                                                   \
@@ -217,13 +219,18 @@ Worker_request(Worker *self, PyObject *args, PyObject *kwds)
    return PyBool_FromLong(true);
 }
 
-/* Worker method to signal the loader to immediately submit all queued IO. */
+/* Worker method to tell the loader to immediately submit all queued IO. */
 static PyObject *
-Worker_submit(Worker *self, PyObject *args, PyObject *kwds)
+Worker_set_eager(Worker *self, PyObject *args, PyObject *kwds)
 {
-   self->worker->loader->signalled = true;
+   bool eager;
+   static char *kwlist[] = {"eager", NULL};
+   if (!PyArg_ParseTupleAndKeywords(args, kwds, "p", kwlist, &eager)) {
+      PyErr_SetString(PyExc_Exception, "missing/invalid argument");
+      return NULL;
+   }
 
-   return PyBool_FromLong(1L);
+   return PyBool_FromLong((bool) async_set_eager(self->worker, eager));
 }
 
 /* Worker method to try to get a file. If a file is waiting in the completion
@@ -280,9 +287,9 @@ static PyMethodDef Worker_methods[] = {
       "Request that a file be loaded."
    },
    {
-      "submit",
-      (PyCFunction) Worker_submit,
-      METH_NOARGS,
+      "set_eager",
+      (PyCFunction) Worker_set_eager,
+      METH_VARARGS | METH_KEYWORDS,
       "Signal loader to submit all queued requests."
    },
    {

@@ -28,8 +28,9 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <errno.h>
+#include <stdatomic.h>
 #include <pthread.h>
+#include <errno.h>
 #include <assert.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -113,6 +114,27 @@ async_try_request(wstate_t *state, char *path)
     /* Configure the entry and move it into the ready list. */
     strncpy(e->path, path, MAX_PATH_LEN);
     fifo_push(&state->ready, &state->ready_lock, e);
+
+    return true;
+}
+
+/* Change whether or not the worker is requesting eager loading. Returns true
+   on success, and false on failure (requested state was already set). */
+bool
+async_set_eager(wstate_t *state, bool eager)
+{
+    /* A successful call must change the state. */
+    if (eager == state->eager) {
+        return false;
+    }
+    state->eager = eager;
+
+    /* Update the loader's eager status. */
+    if (eager) {
+        atomic_fetch_add(&state->loader->eager, 1);
+    } else {
+        atomic_fetch_dec(&state->loader->eager, 1);
+    }
 
     return true;
 }
@@ -282,7 +304,7 @@ async_reader_loop(void *arg)
     entry_t *e = NULL;
     while (true) {
         /* Check if we need to submit to io_uring. */
-        if (ld->n_queued == ld->dispatch_n || ld->signalled) {
+        if (ld->n_queued == ld->dispatch_n || atomic_load(&ld->eager) > 0) {
             /* Reset the to-be-sorted array. */
             for (size_t j = 0; j < ld->n_queued; j++) {
                 ld->sortable[j] = &ld->wrappers[j];
@@ -313,7 +335,6 @@ async_reader_loop(void *arg)
             io_uring_submit(&ld->ring);
 
             /* Reset submission requirements. */
-            ld->signalled = false;
             ld->n_queued = 0;
         }
 
@@ -493,6 +514,7 @@ async_init(lstate_t *loader,
     }
 
     /* Initialize the LBA sorting arrays. */
+    atomic_init(&loader->eager, 0);
     loader->wrappers = sorts_start;
     loader->sortable = sortp_start;
     for (size_t i = 0; i < n_entries; i++) {
