@@ -202,6 +202,8 @@ file_get_lba(int fd)
     } else {
         return fiemap->fm_extents[0].fe_physical;
     }
+
+    return 0;
 }
 
 /* Submits an AIO for the file at PATH, allocating an shm object of equal size
