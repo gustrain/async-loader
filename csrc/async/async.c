@@ -130,11 +130,11 @@ async_set_eager(wstate_t *state, bool eager)
     state->eager = eager;
 
     /* Update the loader's eager status. */
-    // if (eager) {
-    //     atomic_fetch_add(&state->loader->eager, 1);
-    // } else {
-    //     atomic_fetch_sub(&state->loader->eager, 1);
-    // }
+    if (eager) {
+        atomic_fetch_add(&state->loader->eager, 1);
+    } else {
+        atomic_fetch_sub(&state->loader->eager, 1);
+    }
 
     return true;
 }
@@ -309,8 +309,8 @@ async_reader_loop(void *arg)
             printf("dispatch_n = %lu, n_queued = %lu, eager = %llu\n",
                    ld->n_queued, ld->dispatch_n, eager);
 
-            // /* Sort the request queue by LBA. */
-            // sort(ld->sortable, ld->n_queued);
+            /* Sort the request queue by LBA. */
+            sort(ld->sortable, ld->n_queued);
 
             /* Issue IO for each queued request. */
             for (size_t i = 0; i < ld->n_queued; i++) {
