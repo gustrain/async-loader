@@ -130,11 +130,11 @@ async_set_eager(wstate_t *state, bool eager)
     state->eager = eager;
 
     /* Update the loader's eager status. */
-    if (eager) {
-        atomic_fetch_add(&state->loader->eager, 1);
-    } else {
-        atomic_fetch_sub(&state->loader->eager, 1);
-    }
+    // if (eager) {
+    //     atomic_fetch_add(&state->loader->eager, 1);
+    // } else {
+    //     atomic_fetch_sub(&state->loader->eager, 1);
+    // }
 
     return true;
 }
