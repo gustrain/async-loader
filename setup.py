@@ -14,6 +14,7 @@ module_asyncloader = Extension(
         'csrc/asyncmodule/asyncmodule.c',
         'csrc/async/async.c',
         'csrc/utils/alloc.c',
+        'csrc/utils/sort.c',
     ],
     extra_link_args = [
         '-lpthread',
