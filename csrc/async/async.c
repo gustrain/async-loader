@@ -518,9 +518,7 @@ async_init(lstate_t *loader,
        memory because while worker interact with the shared queues, the IO
        submissions (thus interactions with liburing) are done only by this
        reader/responder process. */
-    int status = io_uring_queue_init((unsigned int) n_entries,
-                                     &loader->ring,
-                                     0);
+    int status = io_uring_queue_init((unsigned int) n_entries, &loader->ring, 0);
     if (status < 0) {
         fprintf(stderr, "io_uring_queue_init failed; %s\n", strerror(-status));
         mmap_free(loader->states, total_size);
