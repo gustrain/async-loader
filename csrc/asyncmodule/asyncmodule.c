@@ -355,8 +355,7 @@ Loader_init(PyObject *self, PyObject *args, PyObject *kwds)
    /* Parse arguments. */
    size_t queue_depth, n_workers, min_dispatch_n, max_idle_iters;
    static char *kwlist[] = {
-      "queue_depth", "max_file_size", "n_workers", "min_dispatch_n",
-      "max_idle_iters", NULL
+      "queue_depth", "n_workers", "min_dispatch_n", "max_idle_iters", NULL
    };
    if (!PyArg_ParseTupleAndKeywords(args, kwds, "kkkk", kwlist,
                                     &queue_depth,
