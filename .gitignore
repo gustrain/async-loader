@@ -2,6 +2,6 @@
 build/*
 dist/*
 test/c/async/async
-test/c/uitls/utils
+test/c/utils/utils
 *.egg-info
 *.o
