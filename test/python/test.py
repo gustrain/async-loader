@@ -123,13 +123,18 @@ def verify_worker_loop(filepaths: List[str], batch_size: int, worker: al.Worker,
                 print("Worker request failed")
 
         # Retrieve results
-        for _ in range(n_this_batch):
+        for i in range(n_this_batch):
             entry = worker.wait_get()
             filepath = entry.get_filepath().decode('utf-8')
             data = entry.get_data()
 
             if (data != reference_data[filepath]):
                 mismatch_count += 1
+                print("mismatch... batch {}, image {}".format(batch_id, i))
+                print("truth: {}".format(reference_data[filepath][:16]))
+                print("async: {}".format(data[:16]))
+                print("")
+                exit()
             else:
                 match_count += 1
 
