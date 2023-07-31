@@ -58,26 +58,19 @@ def load_async_worker_loop(filepaths: List[str], batch_size: int, worker: al.Wor
             if worker.request(filepath = filepaths.pop()) != True:
                 print("Worker request failed")
 
-        # Request immediate submission for final batch.
-        if partial_batch:
-            worker.set_eager(True)
-
         # Retrieve results
         for _ in range(n_this_batch):
             entry = worker.wait_get()
             entry.release()
 
-        if partial_batch:
-            worker.set_eager(False)
-
 # Load all files in FILEPATHS using AsyncLoader with N_WORKERS worker threads.
-def load_async(filepaths: List[str], batch_size: int, max_file_size: int, n_workers: int):
+def load_async(filepaths: List[str], batch_size: int, max_idle_iters: int, n_workers: int):
     n_files = len(filepaths)
     files_per_loader = int(math.ceil(n_files / n_workers))
     loader = al.Loader(queue_depth=batch_size,
-                       max_file_size=max_file_size,
                        n_workers=n_workers,
-                       min_dispatch_n=batch_size)
+                       min_dispatch_n=batch_size,
+                       max_idle_iters=max_idle_iters)
     
     # Spawn the loader
     loader_process = mp.Process(target=loader.become_loader)
@@ -126,10 +119,6 @@ def verify_worker_loop(filepaths: List[str], batch_size: int, worker: al.Worker,
             if worker.request(filepath = filepaths.pop()) != True:
                 print("Worker request failed")
 
-        # Request immediate submission for final batch.
-        if partial_batch:
-            worker.set_eager(True)
-
         # Retrieve results
         for _ in range(n_this_batch):
             entry = worker.wait_get()
@@ -142,13 +131,10 @@ def verify_worker_loop(filepaths: List[str], batch_size: int, worker: al.Worker,
                 match_count += 1
 
             entry.release()
-        
-        if partial_batch:
-            worker.set_eager(False)
     
     print("Worker end. {} matches, {} mismatches".format(match_count, mismatch_count))
 
-def verify_integrity(filepaths: List[str], batch_size: int, max_file_size: int, n_workers: int):
+def verify_integrity(filepaths: List[str], batch_size: int, max_idle_iters: int, n_workers: int):
     # Read everything, and store the data
     data = {}
     for filepath in filepaths:
@@ -157,9 +143,9 @@ def verify_integrity(filepaths: List[str], batch_size: int, max_file_size: int, 
 
     # Spin up an AsyncLoader and make sure it reads the same data
     loader = al.Loader(queue_depth=batch_size,
-                       max_file_size=max_file_size,
                        n_workers=n_workers,
-                       min_dispatch_n=batch_size)
+                       min_dispatch_n=batch_size,
+                       max_idle_iters=max_idle_iters)
     loader_process = mp.Process(target=loader.become_loader)
     worker_process =  mp.Process(target=verify_worker_loop, args=(filepaths, batch_size, loader.get_worker_context(id=0), data))
 
