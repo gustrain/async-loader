@@ -101,11 +101,13 @@ typedef struct loader_state {
     size_t          n_states;       /* Worker states in STATES. */
     size_t          n_queued;       /* Number of requests queued in WRAPPERS. */
     size_t          dispatch_n;     /* Minimum N_QUEUED value to submit IO. */
+    size_t          idle_iters;     /* Current number of reader iterations since
+                                       the last request was added to the LBA
+                                       sorting queue. */
+    size_t          max_idle_iters; /* Maximum number of idle reader iterations
+                                       per-worker before we eagerly submit. */
     size_t          total_size;     /* Total memory allocated. For clean up. */
     struct io_uring ring;           /* Submission ring buffer for liburing. */
-    atomic_ullong   eager;          /* Number of workers currently requesting
-                                       eager submission. Eager submission is
-                                       activated if EAGER > 0.*/
     sort_wrapper_t  *wrappers;      /* Array of sort_wrapper_t structs to be
                                        configured prior to sorting. */
     sort_wrapper_t **sortable;      /* Sortable array of sort_wrapper_t
@@ -114,12 +116,15 @@ typedef struct loader_state {
 
 
 bool async_try_request(wstate_t *state, char *path);
-bool async_set_eager(wstate_t *state, bool eager);
 entry_t *async_try_get(wstate_t *state);
 void async_release(entry_t *e);
 
 void async_start(lstate_t *loader);
-int async_init(lstate_t *loader, size_t queue_depth, size_t max_file_size, size_t n_workers, size_t min_dispatch_n);
+int async_init(lstate_t *loader,
+               size_t queue_depth,
+               size_t n_workers,
+               size_t min_dispatch_n,
+               size_t max_idle_iters);
 
 
 #endif

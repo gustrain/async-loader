@@ -118,27 +118,6 @@ async_try_request(wstate_t *state, char *path)
     return true;
 }
 
-/* Change whether or not the worker is requesting eager loading. Returns true
-   on success, and false on failure (requested state was already set). */
-bool
-async_set_eager(wstate_t *state, bool eager)
-{
-    /* A successful call must change the state. */
-    if (eager == state->eager) {
-        return false;
-    }
-    state->eager = eager;
-
-    /* Update the loader's eager status. */
-    if (eager) {
-        atomic_fetch_add(&state->loader->eager, 1);
-    } else {
-        atomic_fetch_sub(&state->loader->eager, 1);
-    }
-
-    return true;
-}
-
 /* Worker interface to output queue. On success, pops an entry from the
    completed queue and returns a pointer to it. On failure (e.g., list empty),
    NULL is returned. */
@@ -303,9 +282,13 @@ async_reader_loop(void *arg)
     size_t i = 0;
     entry_t *e = NULL;
     while (true) {
-        /* Check if we need to submit to io_uring. */
-        unsigned long long eager = atomic_load(&ld->eager);
-        if (ld->n_queued == ld->dispatch_n || (ld->n_queued > 0 && eager)) {
+        /* Check if we need to submit to io_uring. We submit when we've either
+           filled the LBA sorting queue, or when we've not received any new
+           requests in a while; if we've had [MAX_IDLE_ITERS * N_STATES]
+           iterations without finding any new requests, then we submit the IO we
+           currently have. */
+        if (ld->n_queued == ld->dispatch_n ||
+            ld->idle_iters > (ld->max_idle_iters * ld->n_states)) {
 
             /* Sort the request queue by LBA. */
             sort(ld->sortable, ld->n_queued);
@@ -316,9 +299,8 @@ async_reader_loop(void *arg)
 
                 int status = async_perform_io(ld, e);
                 if (status < 0) {
-                    /* What to do on failure? */
                     fprintf(stderr,
-                            "reader failed to issue IO; %s; %s; %s (fd = %d).\n",
+                            "reader failed to issue IO; %s; %s; %s.\n",
                             e->path,
                             e->shm_fp,
                             strerror(-status),
@@ -332,14 +314,20 @@ async_reader_loop(void *arg)
             io_uring_submit(&ld->ring);
 
             /* Reset submission requirements. */
+            ld->idle_iters = 0;
             ld->n_queued = 0;
         }
 
         /* Pop an item from the ready list. Racy check to avoid hogging lock. */
         wstate_t *st = &ld->states[i++ % ld->n_states];
         if ((e = fifo_pop(&st->ready, &st->ready_lock)) == NULL) {
+            /* Increment the idle counter if the queue is not empty. */
+            if (ld->n_queued > 0) {
+                ld->idle_iters++;
+            }
             continue;
         }
+        ld->idle_iters = 0;
         
         /* Open file. */
         if ((e->fd = open(e->path, O_RDONLY)) < 0) {
@@ -420,15 +408,15 @@ async_start(lstate_t *loader)
 
 /* Initialize the loader. Allocates all shared memory. On success, initializes
    LOADER and returns 0. On failure, returns negative ERRNO value. Each worker
-   is given of queue of depth QUEUE_DEPTH, with each entry containing
-   MAX_FILE_SIZE bytes for file data. IO is only dispatched when a minimum of
-   MIN_DISPATCH_N IOs are ready to execute. */
+   is given of queue of depth QUEUE_DEPTH, and memory is dynamically allocated
+   when files are loaded. IO is only dispatched when a minimum of MIN_DISPATCH_N
+   IOs are ready to execute. */
 int
 async_init(lstate_t *loader,
            size_t queue_depth,
-           size_t max_file_size,
            size_t n_workers,
-           size_t min_dispatch_n)
+           size_t min_dispatch_n,
+           size_t max_idle_iters)
 {
     /* Figure out how much memory to allocate. */
     size_t entry_size = sizeof(entry_t) + sizeof(sort_wrapper_t) + sizeof(sort_wrapper_t *);
@@ -511,7 +499,6 @@ async_init(lstate_t *loader,
     }
 
     /* Initialize the LBA sorting arrays. */
-    atomic_init(&loader->eager, 0);
     loader->wrappers = sorts_start;
     loader->sortable = sortp_start;
     for (size_t i = 0; i < n_entries; i++) {
@@ -521,6 +508,8 @@ async_init(lstate_t *loader,
     }
 
     /* Set the loader's config states. */
+    loader->idle_iters = 0;
+    loader->max_idle_iters = max_idle_iters;
     loader->n_states = n_workers;
     loader->n_queued = 0;
     loader->dispatch_n = min_dispatch_n;

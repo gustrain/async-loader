@@ -219,20 +219,6 @@ Worker_request(Worker *self, PyObject *args, PyObject *kwds)
    return PyBool_FromLong(true);
 }
 
-/* Worker method to tell the loader to immediately submit all queued IO. */
-static PyObject *
-Worker_set_eager(Worker *self, PyObject *args, PyObject *kwds)
-{
-   int eager;
-   static char *kwlist[] = {"eager", NULL};
-   if (!PyArg_ParseTupleAndKeywords(args, kwds, "p", kwlist, &eager)) {
-      PyErr_SetString(PyExc_Exception, "missing/invalid argument");
-      return NULL;
-   }
-
-   return PyBool_FromLong((long) async_set_eager(self->worker, (bool) eager));
-}
-
 /* Worker method to try to get a file. If a file is waiting in the completion
    queue, that file is returned and popped from the queue. Otherwise, None is
    returned. */
@@ -285,12 +271,6 @@ static PyMethodDef Worker_methods[] = {
       (PyCFunction) Worker_request,
       METH_VARARGS | METH_KEYWORDS,
       "Request that a file be loaded."
-   },
-   {
-      "set_eager",
-      (PyCFunction) Worker_set_eager,
-      METH_VARARGS | METH_KEYWORDS,
-      "Signal loader to submit all queued requests."
    },
    {
       "try_get",
@@ -373,22 +353,22 @@ Loader_init(PyObject *self, PyObject *args, PyObject *kwds)
    Loader *loader = (Loader *) self;
 
    /* Parse arguments. */
-   size_t queue_depth, max_file_size, n_workers, min_dispatch_n;
+   size_t queue_depth, n_workers, min_dispatch_n, max_idle_iters;
    static char *kwlist[] = {
-      "queue_depth", "max_file_size", "n_workers", "min_dispatch_n", NULL
+      "queue_depth", "max_file_size", "n_workers", "min_dispatch_n",
+      "max_idle_iters", NULL
    };
    if (!PyArg_ParseTupleAndKeywords(args, kwds, "kkkk", kwlist,
                                     &queue_depth,
-                                    &max_file_size,
                                     &n_workers,
-                                    &min_dispatch_n)) {
+                                    &min_dispatch_n,
+                                    &max_idle_iters)) {
       PyErr_SetString(PyExc_Exception, "missing/invalid argument");
       return -1;
    }
 
    /* Sanity-check arguments. */
    ARG_CHECK(queue_depth > 0, "queue depth must be positive", -1);
-   ARG_CHECK(max_file_size > 0, "max file size must be positive", -1);
    ARG_CHECK(n_workers > 0, "must have >=1 worker(s)", -1);
 
    /* Allocate lstate using shared memory. */
@@ -400,9 +380,9 @@ Loader_init(PyObject *self, PyObject *args, PyObject *kwds)
    /* Initialize the loader. */
    int status = async_init(loader->loader,
                            queue_depth,
-                           max_file_size,
                            n_workers,
-                           min_dispatch_n);
+                           min_dispatch_n,
+                           max_idle_iters);
    if (status < 0) {
       PyErr_Format(PyExc_Exception,
                    "failed to initialize loader; %s",
