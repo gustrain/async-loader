@@ -303,8 +303,7 @@ async_reader_loop(void *arg)
                             "reader failed to issue IO; %s; %s; %s.\n",
                             e->path,
                             e->shm_fp,
-                            strerror(-status),
-                            e->fd);
+                            strerror(-status));
                     close(e->fd);
                     fifo_push(&e->worker->ready, &e->worker->ready_lock, e);
                 }
