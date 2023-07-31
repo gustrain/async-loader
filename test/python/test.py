@@ -131,10 +131,12 @@ def verify_worker_loop(filepaths: List[str], batch_size: int, worker: al.Worker,
             if (data != reference_data[filepath]):
                 mismatch_count += 1
                 print("mismatch... batch {}, image {}".format(batch_id, i))
-                print("truth: {}".format(reference_data[filepath][:16]))
-                print("async: {}".format(data[:16]))
-                print("")
-                exit()
+                for i, (ref, ours) in enumerate(zip(reference_data[filepath], data)):
+                    if ref != ours:
+                        print("showing [{} - 16 : {} + 16]".format(i, i))
+                        print("truth: {}".format(reference_data[filepath][i - 16 : i + 16]))
+                        print("async: {}".format(data[i - 16 : i + 16]))
+                        exit()
             else:
                 match_count += 1
 
