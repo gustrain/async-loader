@@ -164,12 +164,13 @@ def main():
         print("Please provide the desired file extension to be loaded.")
         return
     
+    max_idle_iters = 1024
+
     filepath = sys.argv[1]
     extension = sys.argv[2]
     filepaths = get_all_filepaths(filepath, extension)
     np.random.shuffle(filepaths)
-    max_size = ((max([os.path.getsize(path) for path in filepaths]) // (1024 * 4)) + 1) * 1024 * 4
-    print("Max size: {}\nFilepaths: {}".format(max_size, len(filepaths)))
+    print("Filepaths: {}".format( len(filepaths)))
 
     # Get normal loading time
     os.system("sudo ./clear_cache.sh")
@@ -182,12 +183,12 @@ def main():
     for n_workers in worker_configs:
         for batch_size in batch_configs:
             os.system("sudo ./clear_cache.sh")
-            time_async = load_async(filepaths.copy(), batch_size, max_size, n_workers)
-            print("AsyncLoader ({} workers, {} batch size): {:.04}s".format(n_workers, batch_size, time_async))
+            time_async = load_async(filepaths.copy(), batch_size, max_idle_iters, n_workers)
+            print("AsyncLoader ({} workers, {} batch size, {} max idle iters): {:.04}s".format(n_workers, batch_size, time_async, max_idle_iters))
     
     # Check integrity...
     print("\nChecking integrity with 1 worker/32 batch size...")
-    verify_integrity(filepaths.copy(), 1, max_size, 32)
+    verify_integrity(filepaths.copy(), 32, max_idle_iters, 1)
 
 
 if __name__ == "__main__":
