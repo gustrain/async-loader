@@ -35,7 +35,10 @@ from glob import glob
 # Get all filepaths descending from the provided ROOT directory.
 def get_all_filepaths(root: str, extension: str = "*"):
     # Taken from https://stackoverflow.com/a/18394205
-    return [y for x in os.walk(root) for y in glob(os.path.join(x[0], "*.{}".format(extension)))]
+    filepaths = [y for x in os.walk(root) for y in glob(os.path.join(x[0], "*.{}".format(extension)))]
+    total_size = sum([os.path.getsize(filepath) for filepath in filepaths])
+
+    return filepaths, total_size
 
 # Load all files in FILEPATHS using regular synchronous IO.
 def load_normal(filepaths: List[str]):
@@ -168,7 +171,7 @@ def main():
 
     filepath = sys.argv[1]
     extension = sys.argv[2]
-    filepaths = get_all_filepaths(filepath, extension)
+    filepaths, size = get_all_filepaths(filepath, extension)
     np.random.shuffle(filepaths)
     print("Filepaths: {}".format( len(filepaths)))
 
@@ -184,7 +187,7 @@ def main():
         for batch_size in batch_configs:
             os.system("sudo ./clear_cache.sh")
             time_async = load_async(filepaths.copy(), batch_size, max_idle_iters, n_workers)
-            print("AsyncLoader ({} workers, {} batch size, {} max idle iters): {:.04}s".format(n_workers, batch_size, max_idle_iters, time_async))
+            print("AsyncLoader ({} workers, {} batch size, {} max idle iters): {:.04}s ({:.04} MB/s)".format(n_workers, batch_size, max_idle_iters, time_async, ((size / (1024 * 1024)) / time_async)))
     
     # Check integrity...
     print("\nChecking integrity with 1 worker/32 batch size...")
