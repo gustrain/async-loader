@@ -180,19 +180,19 @@ def main():
     np.random.shuffle(filepaths)
     print("Filepaths: {}".format( len(filepaths)))
 
-    # Get normal loading time
-    os.system("sudo ./clear_cache.sh")
-    time_normal = load_normal(filepaths.copy())
-    print("Normal: {:.04}s ({:.04} MB/s).".format(time_normal, size / (1024 * 1024 * time_normal)))
+    # # Get normal loading time
+    # os.system("sudo ./clear_cache.sh")
+    # time_normal = load_normal(filepaths.copy())
+    # print("Normal: {:.04}s ({:.04} MB/s).".format(time_normal, size / (1024 * 1024 * time_normal)))
 
-    # Get async loading time(s)
-    worker_configs = [1]
-    batch_configs = [4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192]
-    for n_workers in worker_configs:
-        for batch_size in batch_configs:
-            os.system("sudo ./clear_cache.sh")
-            time_async = load_async(filepaths.copy(), batch_size, max_idle_iters, n_workers)
-            print("AsyncLoader ({} workers, {} batch size, {} max idle iters): {:.04}s ({:.04} MB/s)".format(n_workers, batch_size, max_idle_iters, time_async, size / (1024 * 1024 * time_async)))
+    # # Get async loading time(s)
+    # worker_configs = [1]
+    # batch_configs = [4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192]
+    # for n_workers in worker_configs:
+    #     for batch_size in batch_configs:
+    #         os.system("sudo ./clear_cache.sh")
+    #         time_async = load_async(filepaths.copy(), batch_size, max_idle_iters, n_workers)
+    #         print("AsyncLoader ({} workers, {} batch size, {} max idle iters): {:.04}s ({:.04} MB/s)".format(n_workers, batch_size, max_idle_iters, time_async, size / (1024 * 1024 * time_async)))
     
     # Check integrity...
     print("\nChecking integrity with 1 worker/32 batch size...")
