@@ -184,7 +184,7 @@ def main():
         for batch_size in batch_configs:
             os.system("sudo ./clear_cache.sh")
             time_async = load_async(filepaths.copy(), batch_size, max_idle_iters, n_workers)
-            print("AsyncLoader ({} workers, {} batch size, {} max idle iters): {:.04}s".format(n_workers, batch_size, time_async, max_idle_iters))
+            print("AsyncLoader ({} workers, {} batch size, {} max idle iters): {:.04}s".format(n_workers, batch_size, max_idle_iters, time_async))
     
     # Check integrity...
     print("\nChecking integrity with 1 worker/32 batch size...")
