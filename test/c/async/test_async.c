@@ -80,7 +80,6 @@ test_worker_loop(wstate_t *worker,
 
 void
 test_config(size_t queue_depth,
-            size_t max_file_size,
             size_t n_workers,
             size_t min_dispatch_n,
             size_t max_idle_iters,
@@ -141,7 +140,6 @@ main(int argc, char **argv)
 {
     size_t n_filepaths    = 4;
     size_t queue_depth    = n_filepaths;
-    size_t max_file_size  = 1024 * 1024;
     size_t min_dispatch_n = queue_depth;
     size_t max_idle_iters = 64;
     char *filepaths[] = {
@@ -158,7 +156,6 @@ main(int argc, char **argv)
     /* Run each test configuration. */
     for (size_t i = 0; i < n_configs; i++) {
         test_config(queue_depth,
-                    max_file_size,
                     n_workers[i],
                     min_dispatch_n,
                     max_idle_iters,
