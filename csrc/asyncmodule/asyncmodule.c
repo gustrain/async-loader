@@ -353,15 +353,17 @@ Loader_init(PyObject *self, PyObject *args, PyObject *kwds)
    Loader *loader = (Loader *) self;
 
    /* Parse arguments. */
+   int direct;
    size_t queue_depth, n_workers, min_dispatch_n, max_idle_iters;
    static char *kwlist[] = {
-      "queue_depth", "n_workers", "min_dispatch_n", "max_idle_iters", NULL
+      "queue_depth", "n_workers", "min_dispatch_n", "max_idle_iters", "direct", NULL
    };
-   if (!PyArg_ParseTupleAndKeywords(args, kwds, "kkkk", kwlist,
+   if (!PyArg_ParseTupleAndKeywords(args, kwds, "kkkk|p", kwlist,
                                     &queue_depth,
                                     &n_workers,
                                     &min_dispatch_n,
-                                    &max_idle_iters)) {
+                                    &max_idle_iters,
+                                    &direct)) {
       PyErr_SetString(PyExc_Exception, "missing/invalid argument");
       return -1;
    }
@@ -381,7 +383,8 @@ Loader_init(PyObject *self, PyObject *args, PyObject *kwds)
                            queue_depth,
                            n_workers,
                            min_dispatch_n,
-                           max_idle_iters);
+                           max_idle_iters,
+                           direct ? __O_DIRECT : 0);
    if (status < 0) {
       PyErr_Format(PyExc_Exception,
                    "failed to initialize loader; %s",

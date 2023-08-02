@@ -107,6 +107,8 @@ typedef struct loader_state {
     size_t          max_idle_iters; /* Maximum number of idle reader iterations
                                        per-worker before we eagerly submit. */
     size_t          total_size;     /* Total memory allocated. For clean up. */
+    int             oflags;         /* Mode to open files with. Allows use of
+                                       O_DIRECT, etc. */
     struct io_uring ring;           /* Submission ring buffer for liburing. */
     sort_wrapper_t  *wrappers;      /* Array of sort_wrapper_t structs to be
                                        configured prior to sorting. */
@@ -124,7 +126,8 @@ int async_init(lstate_t *loader,
                size_t queue_depth,
                size_t n_workers,
                size_t min_dispatch_n,
-               size_t max_idle_iters);
+               size_t max_idle_iters,
+               int oflags);
 
 
 #endif

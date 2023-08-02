@@ -329,7 +329,7 @@ async_reader_loop(void *arg)
         ld->idle_iters = 0;
         
         /* Open file. */
-        if ((e->fd = open(e->path, O_RDONLY)) < 0) {
+        if ((e->fd = open(e->path, st->loader->oflags)) < 0) {
             fprintf(stderr, "failed to open %s\n", e->path);
             fifo_push(&st->ready, &st->ready_lock, e);
             continue;
@@ -409,13 +409,16 @@ async_start(lstate_t *loader)
    LOADER and returns 0. On failure, returns negative ERRNO value. Each worker
    is given of queue of depth QUEUE_DEPTH, and memory is dynamically allocated
    when files are loaded. IO is only dispatched when a minimum of MIN_DISPATCH_N
-   IOs are ready to execute. */
+   IOs are ready to execute. OFLAGS are used with OPEN() as the open mode,
+   allowing use of O_DIRECT and other configurations. O_RDONLY is specified by
+   default, and so O_WRONLY must not be specified. */
 int
 async_init(lstate_t *loader,
            size_t queue_depth,
            size_t n_workers,
            size_t min_dispatch_n,
-           size_t max_idle_iters)
+           size_t max_idle_iters,
+           int oflags)
 {
     /* Figure out how much memory to allocate. */
     size_t entry_size = sizeof(entry_t) + sizeof(sort_wrapper_t) + sizeof(sort_wrapper_t *);
@@ -513,6 +516,7 @@ async_init(lstate_t *loader,
     loader->n_queued = 0;
     loader->dispatch_n = min_dispatch_n;
     loader->total_size = total_size;
+    loader->oflags = O_RDONLY | oflags;
 
     /* Initialize liburing. We don't need to worry about this not using shared
        memory because while worker interact with the shared queues, the IO
