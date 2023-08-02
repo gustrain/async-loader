@@ -93,7 +93,7 @@ test_config(size_t queue_depth,
     assert(loader != NULL);
 
     /* Initialize the loader. */
-    int status = async_init(loader, queue_depth, n_workers, min_dispatch_n, max_idle_iters);
+    int status = async_init(loader, queue_depth, n_workers, min_dispatch_n, max_idle_iters, 0);
     assert(status == 0);
 
     /* Fork, spawning worker processes. */

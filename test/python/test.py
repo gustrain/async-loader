@@ -73,7 +73,8 @@ def load_async(filepaths: List[str], batch_size: int, max_idle_iters: int, n_wor
     loader = al.Loader(queue_depth=batch_size,
                        n_workers=n_workers,
                        min_dispatch_n=batch_size,
-                       max_idle_iters=max_idle_iters)
+                       max_idle_iters=max_idle_iters,
+                       direct=False)
     
     # Spawn the loader
     loader_process = mp.Process(target=loader.become_loader)
@@ -153,7 +154,8 @@ def verify_integrity(filepaths: List[str], batch_size: int, max_idle_iters: int,
     loader = al.Loader(queue_depth=batch_size,
                        n_workers=n_workers,
                        min_dispatch_n=batch_size,
-                       max_idle_iters=max_idle_iters)
+                       max_idle_iters=max_idle_iters,
+                       direct=False)
     loader_process = mp.Process(target=loader.become_loader)
     worker_process =  mp.Process(target=verify_worker_loop, args=(filepaths, batch_size, loader.get_worker_context(id=0), data))
 
