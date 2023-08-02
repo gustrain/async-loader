@@ -353,7 +353,7 @@ Loader_init(PyObject *self, PyObject *args, PyObject *kwds)
    Loader *loader = (Loader *) self;
 
    /* Parse arguments. */
-   int direct;
+   int direct = 0;
    size_t queue_depth, n_workers, min_dispatch_n, max_idle_iters;
    static char *kwlist[] = {
       "queue_depth", "n_workers", "min_dispatch_n", "max_idle_iters", "direct", NULL
