@@ -531,5 +531,8 @@ async_init(lstate_t *loader,
         return status;
     }
 
+    printf("loader->states[0].queue = %p\n", loader->states[0].queue);
+    printf("loader->states[0].free = %p\n", loader->states[0].free);
+
     return 0;
 }
