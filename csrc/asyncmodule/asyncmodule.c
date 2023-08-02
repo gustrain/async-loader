@@ -368,6 +368,12 @@ Loader_init(PyObject *self, PyObject *args, PyObject *kwds)
       return -1;
    }
 
+   printf("queue_depth = %lu\n", queue_depth);
+   printf("n_workers = %lu\n", n_workers);
+   printf("min_dispatch_n = %lu\n", min_dispatch_n);
+   printf("max_idle_iters = %lu\n", max_idle_iters);
+   printf("direct = %d\n", direct);
+
    /* Sanity-check arguments. */
    ARG_CHECK(queue_depth > 0, "queue depth must be positive", -1);
    ARG_CHECK(n_workers > 0, "must have >=1 worker(s)", -1);
