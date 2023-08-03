@@ -363,10 +363,14 @@ async_responder_loop(void *arg)
         } else if (cqe->res < 0) {
             entry_t *e = io_uring_cqe_get_data(cqe);
             fprintf(stderr,
-                    "asynchronous read failed; %s (data @ %p, size = 0x%lx).\n",
+                    "asynchronous read failed; %s (fd = %d, shm_lfd = %d, data @ %p (4K aligned? %d), size = 0x%lx (4K aligned? %d)).\n",
                     strerror(-cqe->res),
+                    e->fd,
+                    e->shm_lfd,
                     e->shm_ldata,
-                    e->size);
+                    ((uint64_t) e->shm_ldata) % 4096 == 0,
+                    e->size,
+                    e->size % 4096 == 0);
             if (cnt++ > 32) {
                 exit(EXIT_FAILURE);
             }
