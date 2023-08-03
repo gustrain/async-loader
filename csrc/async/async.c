@@ -330,11 +330,11 @@ async_reader_loop(void *arg)
         
         /* Open file. */
         if ((e->fd = open(e->path, st->loader->oflags)) < 0) {
-            printf("Opening fd %d with flags 0x%x\n", e->fd, st->loader->oflags);
             fprintf(stderr, "failed to open %s\n", e->path);
             fifo_push(&st->ready, &st->ready_lock, e);
             continue;
         };
+        printf("Opened fd %d with flags 0x%x\n", e->fd, st->loader->oflags);
 
         /* Queue for next bulk submission. */
         sort_wrapper_t *w = ld->sortable[ld->n_queued++];
