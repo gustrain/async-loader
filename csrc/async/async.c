@@ -357,16 +357,16 @@ async_responder_loop(void *arg)
         /* Remove an entry from the completion queue. */
         int status = io_uring_wait_cqe(&ld->ring, &cqe);
         if (status < 0) {
-            /* It is OK for io_uring_wait_cqe to fail. For example, if a worker
-               signals for immediate submission while waiting, it will fail. */
             continue;
         } else if (cqe->res < 0) {
             entry_t *e = io_uring_cqe_get_data(cqe);
             fprintf(stderr,
-                    "asynchronous read failed; %s (fd = %d, shm_lfd = %d, data @ %p (4K aligned? %d), size = 0x%lx (4K aligned? %d)).\n",
+                    "asynchronous read failed; %s (fd = %d (flags = 0x%x), shm_lfd = %d (flags = 0x%x), data @ %p (4K aligned? %d), size = 0x%lx (4K aligned? %d)).\n",
                     strerror(-cqe->res),
                     e->fd,
+                    fnctl(e->fd, F_GETFD),
                     e->shm_lfd,
+                    fnctl(e->shm_lfd, F_GETFD),
                     e->shm_ldata,
                     ((uint64_t) e->shm_ldata) % 4096 == 0,
                     e->size,
