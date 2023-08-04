@@ -334,7 +334,6 @@ async_reader_loop(void *arg)
             fifo_push(&st->ready, &st->ready_lock, e);
             continue;
         };
-        printf("Opened fd %d with flags 0x%x\n", e->fd, st->loader->oflags);
 
         /* Queue for next bulk submission. */
         sort_wrapper_t *w = ld->sortable[ld->n_queued++];
