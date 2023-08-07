@@ -100,11 +100,11 @@ typedef struct loader_state {
     wstate_t       *states;         /* N_STATES worker states. */
     size_t          n_states;       /* Worker states in STATES. */
     size_t          n_queued;       /* Number of requests queued in WRAPPERS. */
-    size_t          dispatch_n;     /* Minimum N_QUEUED value to submit IO. */
+    size_t          dispatch_n;     /* Necessary N_QUEUED value to submit IO. */
     size_t          idle_iters;     /* Current number of reader iterations since
                                        the last request was added to the LBA
                                        sorting queue. */
-    size_t          max_idle_iters; /* Maximum number of idle reader iterations
+    size_t          idle_iters;     /* Maximum number of idle reader iterations
                                        per-worker before we eagerly submit. */
     size_t          total_size;     /* Total memory allocated. For clean up. */
     int             oflags;         /* Mode to open files with. Allows use of

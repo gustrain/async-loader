@@ -37,12 +37,15 @@ There are two tests in `test/` you can run to ensure the installation in working
 
 ## Documentation
 
-### `AsyncLoader.Loader(queue_depth: int, max_file_size: int, n_workers: int, min_dispatch_n: int)`
+### `AsyncLoader.Loader(queue_depth: int, max_file_size: int, n_workers: int, dispatch_n: int, idle_iters: int, direct: Optional[bool])`
 
 Loader, responsible for handling up to `queue_depth` concurrent requests
-per worker, with up to `n_workers` workers. `min_dispatch_n` is currently
-unused, but is intended to be a minimum number of IO requests the loader must
-issue at once (to better utilize IO sorting).
+per worker, with up to `n_workers` workers. For the requests to issue, a minimum
+of `dispatch_n` requests must be queued, or the reader loop must idle for
+`idle_iters` without receiving any new requests.
+
+The `direct` flag enables the `O_DIRECT` file flag, meaning that all IO bypasses
+the page cache.
 
 #### `Loader.become_loader()`
 
@@ -65,13 +68,6 @@ Worker context. Provides an interface to the loader for the given worker.
 #### `Worker.request(filepath: str) -> bool`
 
 Request a filepath to be loaded. Returns `True` on success, `False` on failure.
-
-#### `Worker.submit() -> bool`
-
-Force the loader to eagerly submit IO for all currently queued requests (across
-all workers). Should be called when this worker has submitted < `min_dispatch_n`
-requests, and needs those requests to terminate in order to continue. Always
-returns `True`.
 
 #### `Worker.try_get() -> AsyncLoader.Entry`
 

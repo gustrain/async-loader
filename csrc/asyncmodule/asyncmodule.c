@@ -354,15 +354,15 @@ Loader_init(PyObject *self, PyObject *args, PyObject *kwds)
 
    /* Parse arguments. */
    int direct = 0;
-   size_t queue_depth, n_workers, min_dispatch_n, max_idle_iters;
+   size_t queue_depth, n_workers, dispatch_n, idle_iters;
    static char *kwlist[] = {
-      "queue_depth", "n_workers", "min_dispatch_n", "max_idle_iters", "direct", NULL
+      "queue_depth", "n_workers", "dispatch_n", "idle_iters", "direct", NULL
    };
    if (!PyArg_ParseTupleAndKeywords(args, kwds, "kkkk|p", kwlist,
                                     &queue_depth,
                                     &n_workers,
-                                    &min_dispatch_n,
-                                    &max_idle_iters,
+                                    &dispatch_n,
+                                    &idle_iters,
                                     &direct)) {
       PyErr_SetString(PyExc_Exception, "missing/invalid argument");
       return -1;
@@ -382,8 +382,8 @@ Loader_init(PyObject *self, PyObject *args, PyObject *kwds)
    int status = async_init(loader->loader,
                            queue_depth,
                            n_workers,
-                           min_dispatch_n,
-                           max_idle_iters,
+                           dispatch_n,
+                           idle_iters,
                            direct ? __O_DIRECT : 0);
    if (status < 0) {
       PyErr_Format(PyExc_Exception,

@@ -81,8 +81,8 @@ test_worker_loop(wstate_t *worker,
 void
 test_config(size_t queue_depth,
             size_t n_workers,
-            size_t min_dispatch_n,
-            size_t max_idle_iters,
+            size_t dispatch_n,
+            size_t idle_iters,
             char **filepaths,
             size_t n_filepaths)
 {
@@ -93,7 +93,7 @@ test_config(size_t queue_depth,
     assert(loader != NULL);
 
     /* Initialize the loader. */
-    int status = async_init(loader, queue_depth, n_workers, min_dispatch_n, max_idle_iters, 0);
+    int status = async_init(loader, queue_depth, n_workers, dispatch_n, idle_iters, 0);
     assert(status == 0);
 
     /* Fork, spawning worker processes. */
@@ -140,8 +140,8 @@ main(int argc, char **argv)
 {
     size_t n_filepaths    = 4;
     size_t queue_depth    = n_filepaths;
-    size_t min_dispatch_n = queue_depth;
-    size_t max_idle_iters = 64;
+    size_t dispatch_n = queue_depth;
+    size_t idle_iters = 64;
     char *filepaths[] = {
         "Makefile",
         "async",
@@ -157,8 +157,8 @@ main(int argc, char **argv)
     for (size_t i = 0; i < n_configs; i++) {
         test_config(queue_depth,
                     n_workers[i],
-                    min_dispatch_n,
-                    max_idle_iters,
+                    dispatch_n,
+                    idle_iters,
                     filepaths,
                     n_filepaths);
     }
