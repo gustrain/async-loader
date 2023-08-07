@@ -104,7 +104,7 @@ typedef struct loader_state {
     size_t          idle_iters;     /* Current number of reader iterations since
                                        the last request was added to the LBA
                                        sorting queue. */
-    size_t          idle_iters;     /* Maximum number of idle reader iterations
+    size_t          max_idle_iters; /* Maximum number of idle reader iterations
                                        per-worker before we eagerly submit. */
     size_t          total_size;     /* Total memory allocated. For clean up. */
     int             oflags;         /* Mode to open files with. Allows use of

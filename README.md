@@ -42,7 +42,7 @@ There are two tests in `test/` you can run to ensure the installation in working
 Loader, responsible for handling up to `queue_depth` concurrent requests
 per worker, with up to `n_workers` workers. For the requests to issue, a minimum
 of `dispatch_n` requests must be queued, or the reader loop must idle for
-`idle_iters` without receiving any new requests.
+`max_idle_iters` without receiving any new requests.
 
 The `direct` flag enables the `O_DIRECT` file flag, meaning that all IO bypasses
 the page cache.

@@ -284,10 +284,11 @@ async_reader_loop(void *arg)
     while (true) {
         /* Check if we need to submit to io_uring. We submit when we've either
            filled the LBA sorting queue, or when we've not received any new
-           requests in a while; if we've had [IDLE_ITERS * N_STATES] iterations
-           without finding any new requests then we submit the queued IO. */
+           requests in a while; if we've had [MAX_IDLE_ITERS * N_STATES]
+           iterations without finding any new requests, then we submit the IO we
+           currently have. */
         if (ld->n_queued == ld->dispatch_n ||
-            ld->idle_iters > (ld->idle_iters * ld->n_states)) {
+            ld->idle_iters > (ld->max_idle_iters * ld->n_states)) {
 
             /* Sort the request queue by LBA. */
             sort(ld->sortable, ld->n_queued);
@@ -420,7 +421,7 @@ async_init(lstate_t *loader,
            size_t queue_depth,
            size_t n_workers,
            size_t dispatch_n,
-           size_t idle_iters,
+           size_t max_idle_iters,
            int oflags)
 {
     /* Figure out how much memory to allocate. */
@@ -514,7 +515,7 @@ async_init(lstate_t *loader,
 
     /* Set the loader's config states. */
     loader->idle_iters = 0;
-    loader->idle_iters = idle_iters;
+    loader->max_idle_iters = max_idle_iters;
     loader->n_states = n_workers;
     loader->n_queued = 0;
     loader->dispatch_n = dispatch_n;

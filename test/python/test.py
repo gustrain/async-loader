@@ -67,13 +67,13 @@ def load_async_worker_loop(filepaths: List[str], batch_size: int, worker: al.Wor
             entry.release()
 
 # Load all files in FILEPATHS using AsyncLoader with N_WORKERS worker threads.
-def load_async(filepaths: List[str], batch_size: int, idle_iters: int, n_workers: int):
+def load_async(filepaths: List[str], batch_size: int, max_idle_iters: int, n_workers: int):
     n_files = len(filepaths)
     files_per_loader = int(math.ceil(n_files / n_workers))
     loader = al.Loader(queue_depth=batch_size,
                        n_workers=n_workers,
                        dispatch_n=batch_size,
-                       idle_iters=idle_iters,
+                       max_idle_iters=max_idle_iters,
                        direct=False)
     
     # Spawn the loader
@@ -143,7 +143,7 @@ def verify_worker_loop(filepaths: List[str], batch_size: int, worker: al.Worker,
     
     print("Worker end. {} matches, {} mismatches".format(match_count, mismatch_count))
 
-def verify_integrity(filepaths: List[str], batch_size: int, idle_iters: int, n_workers: int):
+def verify_integrity(filepaths: List[str], batch_size: int, max_idle_iters: int, n_workers: int):
     # Read everything, and store the data
     data = {}
     for filepath in filepaths:
@@ -154,7 +154,7 @@ def verify_integrity(filepaths: List[str], batch_size: int, idle_iters: int, n_w
     loader = al.Loader(queue_depth=batch_size,
                        n_workers=n_workers,
                        dispatch_n=batch_size,
-                       idle_iters=idle_iters,
+                       max_idle_iters=max_idle_iters,
                        direct=False)
     loader_process = mp.Process(target=loader.become_loader)
     worker_process =  mp.Process(target=verify_worker_loop, args=(filepaths, batch_size, loader.get_worker_context(id=0), data))
@@ -174,7 +174,7 @@ def main():
         print("Please provide the desired file extension to be loaded.")
         return
     
-    idle_iters = 1024
+    max_idle_iters = 1024
 
     filepath = sys.argv[1]
     extension = sys.argv[2]
@@ -193,12 +193,12 @@ def main():
     for n_workers in worker_configs:
         for batch_size in batch_configs:
             os.system("sudo ./clear_cache.sh")
-            time_async = load_async(filepaths.copy(), batch_size, idle_iters, n_workers)
+            time_async = load_async(filepaths.copy(), batch_size, max_idle_iters, n_workers)
             print("AsyncLoader ({} workers, {} batch size): {:.04}s ({:.04} MB/s)".format(n_workers, batch_size, time_async, size / (1024 * 1024 * time_async)))
     
     # Check integrity...
     print("\nChecking integrity with 1 worker/32 batch size...")
-    verify_integrity(filepaths.copy(), 32, idle_iters, 1)
+    verify_integrity(filepaths.copy(), 32, max_idle_iters, 1)
 
 
 if __name__ == "__main__":
