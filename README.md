@@ -7,9 +7,13 @@ Python asynchronous file loader module implemented in C/CPython.
 ### Requirements
 
 * Install liburing (follow the instructions at https://github.com/axboe/liburing).
-* Ensure kernel is sufficently up-to-date for liburing (check version with `uname -r`).
-  * To update, run `sudo apt-get update` and `sudo apt-get upgrade `.
-  * Reboot to take effect (`sudo reboot`).
+* Ensure kernel is sufficently up-to-date for liburing (check version with `uname -r`). The following demonstrates how to update your kernel for Ubuntu.
+  * Choose a version from https://kernel.ubuntu.com/~kernel-ppa/mainline/.
+  * Download the `.deb` files for the version you'd like to install.
+  * Run `sudo dpkg -i *.deb` (ensuring there are no other `.deb` files in the download directory) and then `sudo apt -f install`.
+  * Rebooting (`sudo reboot`) should bring the machine up with the newer kernel version, which can again be verified by running `uname -r`.\
+  *Failure will result in an error similar to "`asynchronous read failed; Invalid argument`" when running the tests*\
+  *Versions 5.16 and 6.4 have worked successfully, and 5.4 has failed*
 
 ### Manual
 
@@ -17,14 +21,31 @@ Python asynchronous file loader module implemented in C/CPython.
 
 *Note: you may need to `chown` the created build folder for proper permissions.*
 
+### Testing
+
+There are two tests in `test/` you can run to ensure the installation in working.
+  * Test independent of Python wrapper (`test/c/async/`).
+    * Make the test (`make`).
+    * Run the test (`./async`).\
+    *this test is very brief.*
+  * Test of Python wrapper (`test/python/`).
+    * Choose a directory to be loaded. The duration of the test will depend on the size of this directory, since all files contained will be loaded (e.g., `dir="~/data/"`).
+    * Choose the type of file extension you want to load (e.g., `ext="JPEG"`).
+    * Run the Python script (`python test.py $dir $ext`).\
+    *this test may take a while.*
+
+
 ## Documentation
 
-### `AsyncLoader.Loader(queue_depth: int, max_file_size: int, n_workers: int, min_dispatch_n: int)`
+### `AsyncLoader.Loader(queue_depth: int, max_file_size: int, n_workers: int, dispatch_n: int, idle_iters: int, direct: Optional[bool])`
 
 Loader, responsible for handling up to `queue_depth` concurrent requests
-per worker, with up to `n_workers` workers. `min_dispatch_n` is currently
-unused, but is intended to be a minimum number of IO requests the loader must
-issue at once (to better utilize IO sorting).
+per worker, with up to `n_workers` workers. For the requests to issue, a minimum
+of `dispatch_n` requests must be queued, or the reader loop must idle for
+`max_idle_iters` without receiving any new requests.
+
+The `direct` flag enables the `O_DIRECT` file flag, meaning that all IO bypasses
+the page cache.
 
 #### `Loader.become_loader()`
 
@@ -46,7 +67,7 @@ Worker context. Provides an interface to the loader for the given worker.
 
 #### `Worker.request(filepath: str) -> bool`
 
-Request a filepath to be loaded.
+Request a filepath to be loaded. Returns `True` on success, `False` on failure.
 
 #### `Worker.try_get() -> AsyncLoader.Entry`
 

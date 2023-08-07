@@ -1,5 +1,7 @@
 .vscode/*
 build/*
 dist/*
+test/c/async/async
+test/c/utils/utils
 *.egg-info
 *.o

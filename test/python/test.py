@@ -35,7 +35,10 @@ from glob import glob
 # Get all filepaths descending from the provided ROOT directory.
 def get_all_filepaths(root: str, extension: str = "*"):
     # Taken from https://stackoverflow.com/a/18394205
-    return [y for x in os.walk(root) for y in glob(os.path.join(x[0], "*.{}".format(extension)))]
+    filepaths = [y for x in os.walk(root) for y in glob(os.path.join(x[0], "*.{}".format(extension)))]
+    total_size = sum([os.path.getsize(filepath) for filepath in filepaths])
+
+    return filepaths, total_size
 
 # Load all files in FILEPATHS using regular synchronous IO.
 def load_normal(filepaths: List[str]):
@@ -53,6 +56,7 @@ def load_async_worker_loop(filepaths: List[str], batch_size: int, worker: al.Wor
     while filepaths:
         # Submit requests
         n_this_batch = min(batch_size, len(filepaths))
+        partial_batch = n_this_batch < batch_size
         for _ in range(n_this_batch):
             if worker.request(filepath = filepaths.pop()) != True:
                 print("Worker request failed")
@@ -63,13 +67,14 @@ def load_async_worker_loop(filepaths: List[str], batch_size: int, worker: al.Wor
             entry.release()
 
 # Load all files in FILEPATHS using AsyncLoader with N_WORKERS worker threads.
-def load_async(filepaths: List[str], batch_size: int, max_file_size: int, n_workers: int):
+def load_async(filepaths: List[str], batch_size: int, max_idle_iters: int, n_workers: int):
     n_files = len(filepaths)
     files_per_loader = int(math.ceil(n_files / n_workers))
     loader = al.Loader(queue_depth=batch_size,
-                       max_file_size=max_file_size,
                        n_workers=n_workers,
-                       min_dispatch_n=-1)
+                       dispatch_n=batch_size,
+                       max_idle_iters=max_idle_iters,
+                       direct=False)
     
     # Spawn the loader
     loader_process = mp.Process(target=loader.become_loader)
@@ -113,26 +118,32 @@ def verify_worker_loop(filepaths: List[str], batch_size: int, worker: al.Worker,
 
         # Submit requests
         n_this_batch = min(batch_size, len(filepaths))
+        partial_batch = n_this_batch < batch_size
         for _ in range(n_this_batch):
             if worker.request(filepath = filepaths.pop()) != True:
                 print("Worker request failed")
 
         # Retrieve results
-        for _ in range(n_this_batch):
+        for i in range(n_this_batch):
             entry = worker.wait_get()
             filepath = entry.get_filepath().decode('utf-8')
             data = entry.get_data()
 
-            if (data != reference_data[filepath]):
-                mismatch_count += 1
-            else:
+            matched = True
+            for i, (ref, ours) in enumerate(zip(reference_data[filepath], data)):
+                if ref != ours:
+                    matched = False
+
+            if matched:
                 match_count += 1
+            else:
+                mismatch_count += 1
 
             entry.release()
     
     print("Worker end. {} matches, {} mismatches".format(match_count, mismatch_count))
 
-def verify_integrity(filepaths: List[str], batch_size: int, max_file_size: int, n_workers: int):
+def verify_integrity(filepaths: List[str], batch_size: int, max_idle_iters: int, n_workers: int):
     # Read everything, and store the data
     data = {}
     for filepath in filepaths:
@@ -141,9 +152,10 @@ def verify_integrity(filepaths: List[str], batch_size: int, max_file_size: int, 
 
     # Spin up an AsyncLoader and make sure it reads the same data
     loader = al.Loader(queue_depth=batch_size,
-                       max_file_size=max_file_size,
                        n_workers=n_workers,
-                       min_dispatch_n=-1)
+                       dispatch_n=batch_size,
+                       max_idle_iters=max_idle_iters,
+                       direct=False)
     loader_process = mp.Process(target=loader.become_loader)
     worker_process =  mp.Process(target=verify_worker_loop, args=(filepaths, batch_size, loader.get_worker_context(id=0), data))
 
@@ -162,30 +174,31 @@ def main():
         print("Please provide the desired file extension to be loaded.")
         return
     
+    max_idle_iters = 1024
+
     filepath = sys.argv[1]
     extension = sys.argv[2]
-    filepaths = get_all_filepaths(filepath, extension)
+    filepaths, size = get_all_filepaths(filepath, extension)
     np.random.shuffle(filepaths)
-    max_size = ((max([os.path.getsize(path) for path in filepaths]) // (1024 * 4)) + 1) * 1024 * 4
-    print("Max size: {}\nFilepaths: {}".format(max_size, len(filepaths)))
+    print("Filepaths: {}".format( len(filepaths)))
 
     # Get normal loading time
     os.system("sudo ./clear_cache.sh")
     time_normal = load_normal(filepaths.copy())
-    print("Normal: {:.04}s.".format(time_normal))
+    print("Normal: {:.04}s ({:.04} MB/s).".format(time_normal, size / (1024 * 1024 * time_normal)))
 
     # Get async loading time(s)
     worker_configs = [1]
-    batch_configs = [4, 8, 16, 32, 64, 128, 256, 512, 1024]
+    batch_configs = [4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192]
     for n_workers in worker_configs:
         for batch_size in batch_configs:
             os.system("sudo ./clear_cache.sh")
-            time_async = load_async(filepaths.copy(), batch_size, max_size, n_workers)
-            print("AsyncLoader ({} workers, {} batch size): {:.04}s".format(n_workers, batch_size, time_async))
+            time_async = load_async(filepaths.copy(), batch_size, max_idle_iters, n_workers)
+            print("AsyncLoader ({} workers, {} batch size): {:.04}s ({:.04} MB/s)".format(n_workers, batch_size, time_async, size / (1024 * 1024 * time_async)))
     
     # Check integrity...
     print("\nChecking integrity with 1 worker/32 batch size...")
-    verify_integrity(filepaths.copy(), 1, max_size, 32)
+    verify_integrity(filepaths.copy(), 32, max_idle_iters, 1)
 
 
 if __name__ == "__main__":

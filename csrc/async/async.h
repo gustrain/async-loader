@@ -24,6 +24,8 @@
 #ifndef __ASYNC_LOADER_MODULE_H_
 #define __ASYNC_LOADER_MODULE_H_
 
+#include "../utils/sort.h"
+
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -39,8 +41,7 @@ typedef struct queue_entry {
     int           fd;                       /* File descriptor for file being
                                                loaded. Belongs to the loader.
                                                Not to be touched by workers. */
-    struct iovec *iovecs;                   /* Array of iovecs for readv. */
-    size_t        n_vecs;                   /* Number of structs in IOVECS. */
+    uint64_t      lba;                      /* LBA of the file's first extent. */
     size_t        size;                     /* Size of file in bytes. */
     char          shm_fp[MAX_PATH_LEN+2];   /* Name used for shm object. */
     int           shm_lfd;                  /* File descriptor of shm object for
@@ -65,6 +66,10 @@ typedef struct queue_entry {
 
 /* Worker state. Input/output queues unique to that worker. */
 typedef struct worker_state {
+    struct loader_state *loader;    /* Loader's state struct. */
+    bool                 eager;     /* Flag indicating if this worker is
+                                       currently requesting eager submission. */
+
     /* Input buffer. */
     size_t   capacity;  /* Total number of entries in QUEUE. */
     entry_t *queue;     /* CAPACITY queue entries. */
@@ -85,18 +90,30 @@ typedef struct worker_state {
     entry_t *completed;     /* Queue entries with completed IO. */
 
     /* Synchronization. */
-    pthread_spinlock_t free_lock;       /* Protects FREE. */
-    pthread_spinlock_t ready_lock;      /* Protects READY. */
-    pthread_spinlock_t completed_lock;  /* Protects COMPLETED. */
+    pthread_spinlock_t  free_lock;          /* Protects FREE. */
+    pthread_spinlock_t  ready_lock;         /* Protects READY. */
+    pthread_spinlock_t  completed_lock;     /* Protects COMPLETED. */
 } wstate_t;
 
 /* Loader (reader + responder) state. */
-typedef struct {
+typedef struct loader_state {
     wstate_t       *states;         /* N_STATES worker states. */
     size_t          n_states;       /* Worker states in STATES. */
-    size_t          dispatch_n;     /* Async IO requests to send at once. */
+    size_t          n_queued;       /* Number of requests queued in WRAPPERS. */
+    size_t          dispatch_n;     /* Necessary N_QUEUED value to submit IO. */
+    size_t          idle_iters;     /* Current number of reader iterations since
+                                       the last request was added to the LBA
+                                       sorting queue. */
+    size_t          max_idle_iters; /* Maximum number of idle reader iterations
+                                       per-worker before we eagerly submit. */
     size_t          total_size;     /* Total memory allocated. For clean up. */
+    int             oflags;         /* Mode to open files with. Allows use of
+                                       O_DIRECT, etc. */
     struct io_uring ring;           /* Submission ring buffer for liburing. */
+    sort_wrapper_t  *wrappers;      /* Array of sort_wrapper_t structs to be
+                                       configured prior to sorting. */
+    sort_wrapper_t **sortable;      /* Sortable array of sort_wrapper_t
+                                       pointers for LBA sorting. */
 } lstate_t;
 
 
@@ -105,7 +122,12 @@ entry_t *async_try_get(wstate_t *state);
 void async_release(entry_t *e);
 
 void async_start(lstate_t *loader);
-int async_init(lstate_t *loader, size_t queue_depth, size_t max_file_size, size_t n_workers, size_t min_dispatch_n);
+int async_init(lstate_t *loader,
+               size_t queue_depth,
+               size_t n_workers,
+               size_t min_dispatch_n,
+               size_t max_idle_iters,
+               int oflags);
 
 
 #endif

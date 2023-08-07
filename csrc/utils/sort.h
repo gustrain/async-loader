@@ -21,12 +21,18 @@
    SOFTWARE.
    */
 
-#ifndef __UTILS_ALLOC_H_
-#define __UTILS_ALLOC_H_
+#ifndef __UTILS_SORT_H_
+#define __UTILS_SORT_H_
 
-#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
 
-void *mmap_alloc(size_t size);
-void mmap_free(void *ptr, size_t size);
+/* Sortable wrapper. */
+typedef struct sort_entry {
+    uint64_t  key;      /* Sort key. */
+    void     *data;     /* Associated data. */
+} sort_wrapper_t;
+
+void sort(sort_wrapper_t **to_sort, size_t n);
 
 #endif

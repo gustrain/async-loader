@@ -28,8 +28,8 @@
 #include <unistd.h>
 #include <signal.h>
 #include <sys/wait.h>
-#include "../../csrc/utils/alloc.h"
-#include "../../csrc/async/async.h"
+#include "../../../csrc/utils/alloc.h"
+#include "../../../csrc/async/async.h"
 
 
 /* Generic worker process. */
@@ -80,9 +80,9 @@ test_worker_loop(wstate_t *worker,
 
 void
 test_config(size_t queue_depth,
-            size_t max_file_size,
             size_t n_workers,
-            size_t min_dispatch_n,
+            size_t dispatch_n,
+            size_t idle_iters,
             char **filepaths,
             size_t n_filepaths)
 {
@@ -93,7 +93,7 @@ test_config(size_t queue_depth,
     assert(loader != NULL);
 
     /* Initialize the loader. */
-    int status = async_init(loader, queue_depth, max_file_size, n_workers, min_dispatch_n);
+    int status = async_init(loader, queue_depth, n_workers, dispatch_n, idle_iters, 0);
     assert(status == 0);
 
     /* Fork, spawning worker processes. */
@@ -138,13 +138,13 @@ test_config(size_t queue_depth,
 int
 main(int argc, char **argv)
 {
-    size_t queue_depth    = 32;
-    size_t max_file_size  = 1024 * 1024;
-    size_t min_dispatch_n = queue_depth;
     size_t n_filepaths    = 4;
+    size_t queue_depth    = n_filepaths;
+    size_t dispatch_n = queue_depth;
+    size_t idle_iters = 64;
     char *filepaths[] = {
         "Makefile",
-        "test",
+        "async",
         "test_async.c",
         "test_async.o",
     };
@@ -156,9 +156,9 @@ main(int argc, char **argv)
     /* Run each test configuration. */
     for (size_t i = 0; i < n_configs; i++) {
         test_config(queue_depth,
-                    max_file_size,
                     n_workers[i],
-                    min_dispatch_n,
+                    dispatch_n,
+                    idle_iters,
                     filepaths,
                     n_filepaths);
     }

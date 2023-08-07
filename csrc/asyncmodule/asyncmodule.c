@@ -27,6 +27,8 @@
 #include "../async/async.h"
 #include "../utils/alloc.h"
 
+#include <stdatomic.h>
+
 /* Input validation. */
 #define ARG_CHECK(valid_condition, error_string, return_fail)                  \
    if (!(valid_condition)) {                                                   \
@@ -351,22 +353,23 @@ Loader_init(PyObject *self, PyObject *args, PyObject *kwds)
    Loader *loader = (Loader *) self;
 
    /* Parse arguments. */
-   size_t queue_depth, max_file_size, n_workers, min_dispatch_n;
+   int direct = 0;
+   size_t queue_depth, n_workers, dispatch_n, max_idle_iters;
    static char *kwlist[] = {
-      "queue_depth", "max_file_size", "n_workers", "min_dispatch_n", NULL
+      "queue_depth", "n_workers", "dispatch_n", "max_idle_iters", "direct", NULL
    };
-   if (!PyArg_ParseTupleAndKeywords(args, kwds, "kkkk", kwlist,
+   if (!PyArg_ParseTupleAndKeywords(args, kwds, "kkkk|p", kwlist,
                                     &queue_depth,
-                                    &max_file_size,
                                     &n_workers,
-                                    &min_dispatch_n)) {
+                                    &dispatch_n,
+                                    &max_idle_iters,
+                                    &direct)) {
       PyErr_SetString(PyExc_Exception, "missing/invalid argument");
       return -1;
    }
 
    /* Sanity-check arguments. */
    ARG_CHECK(queue_depth > 0, "queue depth must be positive", -1);
-   ARG_CHECK(max_file_size > 0, "max file size must be positive", -1);
    ARG_CHECK(n_workers > 0, "must have >=1 worker(s)", -1);
 
    /* Allocate lstate using shared memory. */
@@ -378,9 +381,10 @@ Loader_init(PyObject *self, PyObject *args, PyObject *kwds)
    /* Initialize the loader. */
    int status = async_init(loader->loader,
                            queue_depth,
-                           max_file_size,
                            n_workers,
-                           min_dispatch_n);
+                           dispatch_n,
+                           max_idle_iters,
+                           direct ? __O_DIRECT : 0);
    if (status < 0) {
       PyErr_Format(PyExc_Exception,
                    "failed to initialize loader; %s",

@@ -1,7 +1,7 @@
 from distutils.core import setup, Extension
 
 MAJOR = 0
-MINOR = 1
+MINOR = 2
 MICRO = 0
 VERSION = '{}.{}.{}'.format(MAJOR, MINOR, MICRO)
 
@@ -14,6 +14,7 @@ module_asyncloader = Extension(
         'csrc/asyncmodule/asyncmodule.c',
         'csrc/async/async.c',
         'csrc/utils/alloc.c',
+        'csrc/utils/sort.c',
     ],
     extra_link_args = [
         '-lpthread',
