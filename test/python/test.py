@@ -65,6 +65,8 @@ def load_async_worker_loop(filepaths: List[str], batch_size: int, worker: al.Wor
         for _ in range(n_this_batch):
             entry = worker.wait_get()
             entry.release()
+        
+        # print("Worker batch finished")
 
 # Load all files in FILEPATHS using AsyncLoader with N_WORKERS worker threads.
 def load_async(filepaths: List[str], batch_size: int, max_idle_iters: int, n_workers: int):
@@ -72,7 +74,7 @@ def load_async(filepaths: List[str], batch_size: int, max_idle_iters: int, n_wor
     files_per_loader = int(math.ceil(n_files / n_workers))
     loader = al.Loader(queue_depth=batch_size,
                        n_workers=n_workers,
-                       min_dispatch_n=batch_size,
+                       min_dispatch_n=batch_size * n_workers,
                        max_idle_iters=max_idle_iters,
                        direct=False)
     
@@ -183,13 +185,15 @@ def main():
     print("Filepaths: {}".format( len(filepaths)))
 
     # Get normal loading time
-    os.system("sudo ./clear_cache.sh")
-    time_normal = load_normal(filepaths.copy())
-    print("Normal: {:.04}s ({:.04} MB/s).".format(time_normal, size / (1024 * 1024 * time_normal)))
+    # os.system("sudo ./clear_cache.sh")
+    # time_normal = load_normal(filepaths.copy())
+    # print("Normal: {:.04}s ({:.04} MB/s).".format(time_normal, size / (1024 * 1024 * time_normal)))
 
     # Get async loading time(s)
-    worker_configs = [1]
-    batch_configs = [4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192]
+    worker_configs = [4]
+    # batch_configs = [4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384]
+    batch_configs = [2048]
+    # batch_configs = [128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768]
     for n_workers in worker_configs:
         for batch_size in batch_configs:
             os.system("sudo ./clear_cache.sh")
@@ -197,8 +201,8 @@ def main():
             print("AsyncLoader ({} workers, {} batch size, {} max idle iters): {:.04}s ({:.04} MB/s)".format(n_workers, batch_size, max_idle_iters, time_async, size / (1024 * 1024 * time_async)))
     
     # Check integrity...
-    print("\nChecking integrity with 1 worker/32 batch size...")
-    verify_integrity(filepaths.copy(), 32, max_idle_iters, 1)
+    # print("\nChecking integrity with 1 worker/32 batch size...")
+    # verify_integrity(filepaths.copy(), 32, max_idle_iters, 1)
 
 
 if __name__ == "__main__":

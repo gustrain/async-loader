@@ -100,6 +100,7 @@ typedef struct loader_state {
     wstate_t       *states;         /* N_STATES worker states. */
     size_t          n_states;       /* Worker states in STATES. */
     size_t          n_queued;       /* Number of requests queued in WRAPPERS. */
+    size_t          n_completed;    /* Numer of requests completed. */ 
     size_t          dispatch_n;     /* Minimum N_QUEUED value to submit IO. */
     size_t          idle_iters;     /* Current number of reader iterations since
                                        the last request was added to the LBA
@@ -114,6 +115,9 @@ typedef struct loader_state {
                                        configured prior to sorting. */
     sort_wrapper_t **sortable;      /* Sortable array of sort_wrapper_t
                                        pointers for LBA sorting. */
+    pthread_mutex_t step_mutex;
+    pthread_cond_t step_cond;
+    size_t          step_end;
 } lstate_t;
 
 

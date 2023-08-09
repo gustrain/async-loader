@@ -281,6 +281,10 @@ async_reader_loop(void *arg)
        visit to each worker's queue, if that queue has a valid request. */
     size_t i = 0;
     entry_t *e = NULL;
+
+    uint64_t total_submit_time = 0;
+    uint64_t total_open_time = 0;
+
     while (true) {
         /* Check if we need to submit to io_uring. We submit when we've either
            filled the LBA sorting queue, or when we've not received any new
@@ -290,33 +294,70 @@ async_reader_loop(void *arg)
         if (ld->n_queued == ld->dispatch_n ||
             ld->idle_iters > (ld->max_idle_iters * ld->n_states)) {
 
+            printf("ld->n_queued: %lu\n", ld->n_queued);
+
             /* Sort the request queue by LBA. */
             sort(ld->sortable, ld->n_queued);
 
             /* Issue IO for each queued request. */
-            for (size_t i = 0; i < ld->n_queued; i++) {
-                e = (entry_t *) ld->sortable[i]->data;
+            size_t start = 0;
+            // size_t step = 1024;
+            size_t step = ld->n_queued;
+            size_t end = (start + step <= ld->n_queued) ? start + step : ld->n_queued;
+            while (start < ld->n_queued) {
+                struct timespec submit_time_start, submit_time_end;
+                clock_gettime(CLOCK_MONOTONIC_RAW, &submit_time_start);
+            
+                // for (size_t i = 0; i < ld->n_queued; i++) {
+                for (size_t i = start; i < end; i++) {
+                    e = (entry_t *) ld->sortable[i]->data;
 
-                int status = async_perform_io(ld, e);
-                if (status < 0) {
-                    fprintf(stderr,
-                            "reader failed to issue IO; %s; %s; %s.\n",
-                            e->path,
-                            e->shm_fp,
-                            strerror(-status));
-                    close(e->fd);
-                    fifo_push(&e->worker->ready, &e->worker->ready_lock, e);
+                    int status = async_perform_io(ld, e);
+                    if (status < 0) {
+                        fprintf(stderr,
+                                "reader failed to issue IO; %s; %s; %s.\n",
+                                e->path,
+                                e->shm_fp,
+                                strerror(-status));
+                        close(e->fd);
+                        fifo_push(&e->worker->ready, &e->worker->ready_lock, e);
+                    }
                 }
-            }
 
-            /* Explicitly tell io_uring to begin processing. */
-            io_uring_submit(&ld->ring);
+                clock_gettime(CLOCK_MONOTONIC_RAW, &submit_time_end);
+                uint64_t delta_us = (submit_time_end.tv_sec - submit_time_start.tv_sec) * 1000000 + (submit_time_end.tv_nsec - submit_time_start.tv_nsec) / 1000;
+                total_submit_time += delta_us;
+
+                // printf("start: %lu, end: %lu, ld->n_completed: %lu\n", start, end, ld->n_completed);
+                /* Explicitly tell io_uring to begin processing. */
+                io_uring_submit(&ld->ring);
+                // printf("  sent requests to io_uring...\n");
+
+                
+
+                ld->step_end = end;
+                pthread_mutex_lock(&ld->step_mutex);
+                while (ld->n_completed < ld->step_end)
+                {
+                    pthread_cond_wait(&ld->step_cond, &ld->step_mutex);
+                }
+                pthread_mutex_unlock(&ld->step_mutex);
+
+                start = end;
+                end = (start + step <= ld->n_queued) ? start + step : ld->n_queued;
+            }
+            ld->n_completed = 0;
 
             /* Reset submission requirements. */
             ld->idle_iters = 0;
             ld->n_queued = 0;
+            
+            
+                // printf("total_submit_time: %lu  total_open_time: %lu, ld->n_queued: %lu ld->dispatch_n: %lu\n", 
+                //             total_submit_time, total_open_time, ld->n_queued, ld->dispatch_n);
         }
 
+        
         /* Pop an item from the ready list. Racy check to avoid hogging lock. */
         wstate_t *st = &ld->states[i++ % ld->n_states];
         if ((e = fifo_pop(&st->ready, &st->ready_lock)) == NULL) {
@@ -329,6 +370,9 @@ async_reader_loop(void *arg)
         ld->idle_iters = 0;
         
         /* Open file. */
+        struct timespec open_time_start, open_time_end;
+        clock_gettime(CLOCK_MONOTONIC_RAW, &open_time_start);
+
         if ((e->fd = open(e->path, st->loader->oflags)) < 0) {
             fprintf(stderr, "failed to open %s\n", e->path);
             fifo_push(&st->ready, &st->ready_lock, e);
@@ -339,6 +383,10 @@ async_reader_loop(void *arg)
         sort_wrapper_t *w = ld->sortable[ld->n_queued++];
         w->data = (void *) e;
         w->key = file_get_lba(e->fd);
+        clock_gettime(CLOCK_MONOTONIC_RAW, &open_time_end);
+        uint64_t open_delta_us = (open_time_end.tv_sec - open_time_start.tv_sec) * 1000000 + (open_time_end.tv_nsec - open_time_start.tv_nsec) / 1000;
+        total_open_time += open_delta_us;
+
     }
 
     return NULL;
@@ -383,6 +431,13 @@ async_responder_loop(void *arg)
         io_uring_cqe_seen(&ld->ring, cqe);
         close(e->fd);
         fifo_push(&e->worker->completed, &e->worker->completed_lock, e);
+        ld->n_completed = ld->n_completed + 1;
+        if (ld->n_completed >= ld->step_end) {
+            pthread_mutex_lock(&ld->step_mutex);
+            pthread_cond_signal(&ld->step_cond);
+            pthread_mutex_unlock(&ld->step_mutex);
+        }
+        // printf("ld->n_completed: %lu   ld->queued: %lu\n", ld->n_completed, ld->n_queued);
     }
 
     return NULL;
@@ -518,6 +573,7 @@ async_init(lstate_t *loader,
     loader->max_idle_iters = max_idle_iters;
     loader->n_states = n_workers;
     loader->n_queued = 0;
+    loader->n_completed = 0;
     loader->dispatch_n = min_dispatch_n;
     loader->total_size = total_size;
     loader->oflags = O_RDONLY | oflags;
