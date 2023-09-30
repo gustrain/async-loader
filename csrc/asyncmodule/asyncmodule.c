@@ -228,6 +228,7 @@ Worker_try_get(Worker *self, PyObject *args, PyObject *kwds)
    /* Get an entry from the completion queue. */
    entry_t *e = async_try_get(self->worker);
    if (e == NULL) {
+      Py_INCREF(Py_None);
       return Py_None;
    }
 
